@@ -15,12 +15,12 @@
 }
 
 body[data-theme="light"] {
-  --bg: #edfafa; --bg-card: #ffffff; --bg-card-hover: #d8f5f5;
+  --bg: #a8d0d0; --bg-card: #ffffff; --bg-card-hover: #c4e4e4;
   --teal: #006f6f; --teal-bright: #008B8B; --teal-mid: #007a7a;
-  --teal-dim: rgba(0,139,139,0.12); --teal-border: rgba(0,139,139,0.35);
+  --teal-dim: rgba(0,139,139,0.14); --teal-border: rgba(0,139,139,0.38);
   --gold: #a07820; --text: #0a2020; --text-muted: #2a6666; --border: rgba(0,139,139,0.18);
 }
-body[data-theme="light"] { background-image: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0,139,139,0.1) 0%, transparent 65%), radial-gradient(circle at 1px 1px, rgba(0,139,139,0.1) 1px, transparent 0); }
+body[data-theme="light"] { background-image: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0,139,139,0.18) 0%, transparent 65%), radial-gradient(circle at 1px 1px, rgba(0,139,139,0.12) 1px, transparent 0); }
 body[data-theme="light"]::before, body[data-theme="light"]::after { display: none; }
 body[data-theme="light"] header { background: linear-gradient(135deg, rgba(0,139,139,0.15) 0%, rgba(237,250,250,0.98) 60%); border-bottom: 2px solid rgba(0,139,139,0.4); }
 body[data-theme="light"] .brand-name { color: #005f5f; text-shadow: none; }
