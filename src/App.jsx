@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from './AuthContext'
-import { supabase } from './supabaseClient'
 import ActivityFeed from './ActivityFeed'
 import BookAppointment from './BookAppointment'
 import ProfilePage from './ProfilePage'
@@ -14,7 +13,6 @@ const QUICK_ACTIONS = [
   { icon: '🎉', label: 'Recognition',           prompt: "Run the Recognition Agent to pull this week's recognition milestones and shoutouts." },
   { icon: '📐', label: 'Metrics (NPR/PPR/PPL)', prompt: 'Run the Metrics Agent to calculate current NPR, PPR, and PPL for Team Rise.' },
   { icon: '📋', label: 'BPM Follow-Up',         prompt: 'Run the Recruiting Pipeline Agent for BPM follow-up. Show which Captains need to follow up with their BPMs today.' },
-  { icon: '📑', label: 'FNA Report',            prompt: 'Run the FNA Report for Team Rise.' },
 ]
 
 const AGENTS = [
@@ -75,7 +73,9 @@ export default function App() {
     if (profile?.google_sheet_id) loadPipeline(profile.google_sheet_id, profile.google_sheet_tabs)
   }, [profile])
 
-  useEffect(() => { fetchGxStats() }, [])
+  useEffect(() => {
+    if (profile?.full_name) fetchGxStats()
+  }, [profile?.full_name])
 
   async function fetchGxStats() {
     try {
@@ -131,13 +131,29 @@ export default function App() {
     }
   }
 
-  async function runSkill(prompt, name) {
+  const activeAgents       = profile?.custom_agents?.length       ? profile.custom_agents       : AGENTS
+  const activeQuickActions = profile?.custom_quick_actions?.length ? profile.custom_quick_actions : QUICK_ACTIONS
+
+  async function runSkill(prompt, name, skillFile) {
     setFeedLoading(true)
     setActiveSkill(name)
-    const { data, error } = await supabase.functions.invoke('run-skill', { body: { prompt } })
-    const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-    const response = error ? 'Error running skill. Please try again.' : (data?.response || 'Done.')
-    setFeedItems(prev => [{ skill: name, response, time }, ...prev].slice(0, 5))
+    try {
+      const res = await fetch('/api/run-skill', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          skillFile: skillFile || null,
+          apiKey:    profile?.anthropic_api_key,
+        }),
+      })
+      const data = await res.json()
+      const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      setFeedItems(prev => [{ skill: name, response: data.response || data.error || 'Done.', time, ok: !!data.ok }, ...prev].slice(0, 10))
+    } catch(e) {
+      const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      setFeedItems(prev => [{ skill: name, response: 'Network error — is the API server running?', time, ok: false }, ...prev].slice(0, 10))
+    }
     setFeedLoading(false)
     setActiveSkill('')
   }
@@ -245,8 +261,8 @@ export default function App() {
           <section className="quick-section">
             <div className="section-label">Quick Actions</div>
             <div className="pill-grid">
-              {QUICK_ACTIONS.map((a, i) => (
-                <button key={i} className="pill" style={{ animationDelay: `${0.03 + i * 0.04}s` }} onClick={() => runSkill(a.prompt, a.label)}>
+              {activeQuickActions.map((a, i) => (
+                <button key={i} className="pill" style={{ animationDelay: `${0.03 + i * 0.04}s` }} onClick={() => runSkill(a.prompt, a.label, a.skill)}>
                   <span className="em">{a.icon}</span> {a.label}
                 </button>
               ))}
@@ -256,13 +272,13 @@ export default function App() {
           <section className="agents-section">
             <div className="section-label">AI Agents</div>
             <div className="agents-grid">
-              {AGENTS.map((a, i) => (
-                <div key={i} className={`card${a.queen ? ' queen' : ''}`} style={{ animationDelay: `${0.06 + i * 0.05}s` }} onClick={() => runSkill(a.prompt, a.name)}>
+              {activeAgents.map((a, i) => (
+                <div key={i} className={`card${a.queen ? ' queen' : ''}`} style={{ animationDelay: `${0.06 + i * 0.05}s` }} onClick={() => runSkill(a.prompt, a.name, a.skill)}>
                   <div className="card-icon">{a.icon}</div>
                   <div className="card-name">{a.name}</div>
                   <div className="card-desc">{a.desc}</div>
                   <div className="card-foot">
-                    <button className="launch" onClick={e => { e.stopPropagation(); runSkill(a.prompt, a.name) }}>Launch</button>
+                    <button className="launch" onClick={e => { e.stopPropagation(); runSkill(a.prompt, a.name, a.skill) }}>Launch</button>
                   </div>
                 </div>
               ))}

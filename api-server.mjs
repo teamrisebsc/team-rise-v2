@@ -7,6 +7,7 @@ import fs from 'fs'
 const SCRIPT_DIR    = 'C:/Users/Mouth/bsc-appointment-workflow'
 const SCRAPER_DIR   = 'C:/Users/Mouth/bscpro-scraper'
 const GX_CACHE_FILE = 'C:/Users/Mouth/bscpro-scraper/data/gx_final_jun2026.json'
+const SKILLS_DIR    = 'C:/Users/Mouth/.claude/commands'
 
 const TAG = {
   'Step 1':     '107687',
@@ -67,6 +68,7 @@ function findEntry(data, name) {
     if (exact) return exact
     const partial = data.find(a => a.name?.toLowerCase().includes(first))
     if (partial) return partial
+    return null  // name given but not found — caller should show zeros, not someone else's data
   }
   return data[0]
 }
@@ -111,14 +113,14 @@ const server = http.createServer(async (req, res) => {
       const raw    = fs.readFileSync(GX_CACHE_FILE, 'utf-8')
       const data   = JSON.parse(raw)
       const entry  = findEntry(data, name)
-      if (!entry) throw new Error('No entries found')
       res.writeHead(200, cors)
       res.end(JSON.stringify({
-        partners: { current: entry.recruits || 0, goal: 3 },
-        points:   { current: Math.round(entry.points || 0), goal: 15000 },
-        name:     entry.name,
-        qualified: !!entry.qualified,
+        partners: { current: entry?.recruits || 0, goal: 3 },
+        points:   { current: Math.round(entry?.points || 0), goal: 15000 },
+        name:     entry?.name || name,
+        qualified: !!entry?.qualified,
         deadline: 'June 30, 2026',
+        not_found: !entry,
       }))
     } catch(e) {
       res.writeHead(200, cors)
@@ -303,6 +305,81 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
       res.writeHead(500, cors)
       res.end(JSON.stringify({ ok: false, error: err.message }))
+    }
+    return
+  }
+
+  // GET /api/skills — list available skill files
+  if (req.method === 'GET' && req.url === '/api/skills') {
+    try {
+      const files = fs.readdirSync(SKILLS_DIR).filter(f => f.endsWith('.md'))
+      const skills = files.map(f => ({
+        id:   f.replace('.md', ''),
+        name: f.replace('.md', '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        file: f,
+      }))
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({ skills }))
+    } catch(e) {
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({ skills: [] }))
+    }
+    return
+  }
+
+  // POST /api/run-skill — call Anthropic API with optional skill file as context
+  if (req.method === 'POST' && req.url === '/api/run-skill') {
+    try {
+      const body = await parseBody(req)
+      const { prompt, skillFile, apiKey } = body
+      const key = apiKey || process.env.ANTHROPIC_API_KEY
+      if (!key) {
+        res.writeHead(200, cors)
+        res.end(JSON.stringify({ ok: false, error: 'No API key configured. Add your Anthropic API key in Profile Settings.' }))
+        return
+      }
+
+      let systemPrompt = 'You are a helpful AI assistant for Team RISE at WFG (World Financial Group). ' +
+        'Respond with clear, well-structured reports. Use headers, bullet points, and bold text to organize information. ' +
+        'Be concise but thorough. Format numbers clearly.'
+
+      if (skillFile) {
+        try {
+          const skillPath = path.join(SKILLS_DIR, skillFile.endsWith('.md') ? skillFile : skillFile + '.md')
+          const skillContent = fs.readFileSync(skillPath, 'utf-8')
+          systemPrompt = skillContent + '\n\n---\n\n' + systemPrompt
+        } catch(e) { /* skill file not found, use default */ }
+      }
+
+      const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key':          key,
+          'anthropic-version':  '2023-06-01',
+          'content-type':       'application/json',
+        },
+        body: JSON.stringify({
+          model:      'claude-sonnet-4-6',
+          max_tokens: 4096,
+          system:     systemPrompt,
+          messages:   [{ role: 'user', content: prompt }],
+        }),
+      })
+
+      if (!anthropicRes.ok) {
+        const errText = await anthropicRes.text()
+        res.writeHead(200, cors)
+        res.end(JSON.stringify({ ok: false, error: `API error ${anthropicRes.status}: ${errText.slice(0, 200)}` }))
+        return
+      }
+
+      const result = await anthropicRes.json()
+      const response = result.content?.[0]?.text || 'No response.'
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({ ok: true, response }))
+    } catch(e) {
+      res.writeHead(500, cors)
+      res.end(JSON.stringify({ ok: false, error: e.message }))
     }
     return
   }

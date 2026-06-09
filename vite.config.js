@@ -9,6 +9,8 @@ export default defineConfig({
       '/api/pipeline': 'http://localhost:3001',
       '/api/gx-stats': 'http://localhost:3001',
       '/api/gx-sync': 'http://localhost:3001',
+      '/api/run-skill': 'http://localhost:3001',
+      '/api/skills': 'http://localhost:3001',
     }
   }
 })
