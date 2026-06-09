@@ -3,4 +3,12 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    proxy: {
+      '/api/book-appointment': 'http://localhost:3001',
+      '/api/pipeline': 'http://localhost:3001',
+      '/api/gx-stats': 'http://localhost:3001',
+      '/api/gx-sync': 'http://localhost:3001',
+    }
+  }
 })

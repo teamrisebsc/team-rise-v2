@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useAuth } from './AuthContext'
 import { supabase } from './supabaseClient'
 import ActivityFeed from './ActivityFeed'
-import BookMatchup from './BookMatchup'
+import BookAppointment from './BookAppointment'
+import ProfilePage from './ProfilePage'
 
 const QUICK_ACTIONS = [
   { icon: '📊', label: 'Daily Report',          prompt: 'Run the daily report for Team Rise.' },
@@ -31,7 +32,7 @@ const AGENTS = [
 const DEFAULT_GX = { partners: { current: 0, goal: 3 }, points: { current: 0, goal: 15000 }, deadline: 'June 30, 2026' }
 
 export default function App() {
-  const { profile, signOut }    = useAuth()
+  const { profile, signOut, updateProfile } = useAuth()
   const [theme, setTheme]       = useState(() => localStorage.getItem('tr-theme-' + (profile?.id || 'default')) || 'dark')
   const [clock, setClock]       = useState('')
   const [liveDate, setLiveDate] = useState('')
@@ -44,6 +45,17 @@ export default function App() {
   const [feedLoading, setFeedLoading] = useState(false)
   const [activeSkill, setActiveSkill] = useState('')
   const [matchupProspect, setMatchupProspect] = useState(null)
+  const [view, setView] = useState('dashboard')
+  const [gxSyncing, setGxSyncing] = useState(false)
+  const [showLovableBanner, setShowLovableBanner] = useState(true)
+  const [lovableKey, setLovableKey] = useState(0)
+
+  useEffect(() => {
+    if (profile?.id) {
+      const done = localStorage.getItem('lovable_ready_' + profile.id) === 'true'
+      setShowLovableBanner(!done)
+    }
+  }, [profile?.id])
 
   useEffect(() => {
     document.body.dataset.theme = theme
@@ -60,16 +72,60 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (profile?.google_sheet_id) loadPipeline(profile.google_sheet_id, profile.google_sheet_tab)
+    if (profile?.google_sheet_id) loadPipeline(profile.google_sheet_id, profile.google_sheet_tabs)
   }, [profile])
 
-  async function loadPipeline(sheetId, sheetTab) {
-    if (!sheetId) return
-    const tab = sheetTab?.trim() || 'Sheet1'
+  useEffect(() => { fetchGxStats() }, [])
+
+  async function fetchGxStats() {
     try {
-      const res = await fetch(`/api/pipeline?sheet_id=${sheetId}&tab=${encodeURIComponent(tab)}`)
+      const name = profile?.full_name || ''
+      const res  = await fetch(`/api/gx-stats?name=${encodeURIComponent(name)}`)
       const data = await res.json()
-      if (data.prospects?.length) setPipeline(data.prospects)
+      if (!data.error) setGx(data)
+    } catch(e) { /* use defaults */ }
+  }
+
+  async function syncGx() {
+    setGxSyncing(true)
+    try {
+      const name = profile?.full_name || ''
+      const res  = await fetch(`/api/gx-sync?name=${encodeURIComponent(name)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bscproEmail:    profile?.bscpro_email,
+          bscproPassword: profile?.bscpro_password,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) setGx(data)
+    } catch(e) { /* silent */ }
+    setGxSyncing(false)
+  }
+
+  function extractSheetId(input) {
+    if (!input) return null
+    const m = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)
+    return m ? m[1] : input.trim()
+  }
+
+  async function loadPipeline(sheetId, tabs) {
+    const id = extractSheetId(sheetId)
+    if (!id) return
+    // Support new tabs array, fall back to old single tab field
+    const tabList = (tabs?.length ? tabs : [profile?.google_sheet_tab]).filter(Boolean)
+    if (!tabList.length) return
+    try {
+      const results = await Promise.all(
+        tabList.map(tab =>
+          fetch(`/api/pipeline?sheet_id=${id}&tab=${encodeURIComponent(tab)}`)
+            .then(r => r.json())
+            .catch(() => ({ prospects: [] }))
+        )
+      )
+      const merged = results.flatMap(d => d.prospects || [])
+      if (merged.length) setPipeline(merged)
     } catch(e) {
       console.error('Pipeline fetch failed:', e)
     }
@@ -110,7 +166,7 @@ export default function App() {
         </div>
         <div className="header-right">
           <div className="live-date">{liveDate}</div>
-          <div className="user-chip">
+          <div className="user-chip" onClick={() => setView(v => v === 'profile' ? 'dashboard' : 'profile')} style={{ cursor: 'pointer' }} title="Edit Profile">
             <div className="user-avatar">{initials}</div>
             <span className="user-name">{firstName}</span>
           </div>
@@ -121,30 +177,68 @@ export default function App() {
         </div>
       </header>
 
-      <div className="dashboard">
+      {view === 'profile' && <ProfilePage onBack={() => setView('dashboard')} />}
 
-        {/* LEFT — GX Stats */}
-        <aside className="col-left">
-          <div className="panel-label">GX This Month</div>
-          <div className="gx-stat">
-            <div className="gx-row">
-              <span className="gx-name">Partners</span>
-              <span className="gx-value">{gx.partners.current} / {gx.partners.goal}</span>
+      <div className="dashboard" style={{ display: view === 'profile' ? 'none' : 'grid' }}>
+
+        {/* LEFT — GX Stats + Lovable App */}
+        <div className="col-left">
+          <aside className="gx-panel">
+            <div className="panel-label">GX This Month</div>
+            <div className="gx-stat">
+              <div className="gx-row">
+                <span className="gx-name">Partners</span>
+                <span className="gx-value">{gx.partners.current} / {gx.partners.goal}</span>
+              </div>
+              <div className="progress-track"><div className="progress-fill" style={{ width: pPct + '%' }} /></div>
+              <div className="gx-sub">{gx.partners.current} of {gx.partners.goal} direct business partners</div>
             </div>
-            <div className="progress-track"><div className="progress-fill" style={{ width: pPct + '%' }} /></div>
-            <div className="gx-sub">{gx.partners.current} of {gx.partners.goal} direct business partners</div>
-          </div>
-          <div className="gx-stat">
-            <div className="gx-row">
-              <span className="gx-name">Points</span>
-              <span className="gx-value">{gx.points.current.toLocaleString()} / {gx.points.goal.toLocaleString()}</span>
+            <div className="gx-stat">
+              <div className="gx-row">
+                <span className="gx-name">Points</span>
+                <span className="gx-value">{gx.points.current.toLocaleString()} / {gx.points.goal.toLocaleString()}</span>
+              </div>
+              <div className="progress-track"><div className="progress-fill" style={{ width: ptPct + '%' }} /></div>
+              <div className="gx-sub">{gx.points.current.toLocaleString()} of {gx.points.goal.toLocaleString()} pts</div>
             </div>
-            <div className="progress-track"><div className="progress-fill" style={{ width: ptPct + '%' }} /></div>
-            <div className="gx-sub">{gx.points.current.toLocaleString()} of {gx.points.goal.toLocaleString()} pts</div>
+            <div className="gx-deadline">Deadline: {gx.deadline}</div>
+            <button className="sync-btn" onClick={syncGx} disabled={gxSyncing}>
+            {gxSyncing ? 'Syncing…' : 'Sync GX'}
+          </button>
+          </aside>
+
+          <div className="lovable-panel">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div className="panel-label" style={{ marginBottom: 0, borderBottom: 'none', paddingBottom: 0 }}>Team RISE App</div>
+              <button className="lovable-switch-btn" onClick={() => {
+                localStorage.removeItem('lovable_ready_' + profile?.id)
+                setShowLovableBanner(true)
+                setLovableKey(k => k + 1)
+              }}>Switch Account</button>
+            </div>
+            <div className="lovable-wrap">
+              {showLovableBanner && (
+                <div className="lovable-banner">
+                  <div className="lovable-banner-text">
+                    <span className="lovable-banner-title">First Time Setup</span>
+                    Enter your team's access code in the app below, then click "I'm In" when you're through.
+                  </div>
+                  <button className="lovable-ready-btn" onClick={() => {
+                    localStorage.setItem('lovable_ready_' + profile?.id, 'true')
+                    setShowLovableBanner(false)
+                  }}>I'm In</button>
+                </div>
+              )}
+              <iframe
+                key={`${profile?.id}-${lovableKey}`}
+                src={`https://teamrise.lovable.app/?t=${lovableKey}`}
+                className="lovable-frame"
+                title="Team RISE Lovable App"
+                allow="camera; microphone; fullscreen"
+              />
+            </div>
           </div>
-          <div className="gx-deadline">Deadline: {gx.deadline}</div>
-          <button className="sync-btn" onClick={() => runSkill('Run the Metrics Agent to sync and update GX stats for Team Rise.', 'GX Sync')}>Sync GX</button>
-        </aside>
+        </div>
 
         {/* CENTER — Actions + Agents + FNA + Feed */}
         <main className="col-center">
@@ -248,8 +342,8 @@ export default function App() {
           )}
 
           <div className="matchup-divider" />
-          <div className="panel-label">Book a Matchup</div>
-          <BookMatchup
+          <div className="panel-label">Book Appointment</div>
+          <BookAppointment
             prospect={matchupProspect}
             onClose={() => setMatchupProspect(null)}
             onBooked={() => setMatchupProspect(null)}
@@ -258,14 +352,14 @@ export default function App() {
 
       </div>
 
-      <div className="status-bar">
+      {view !== 'profile' && <div className="status-bar" style={{ display: '' }}>
         <div className="sb-item"><div className="dot dot-green" /> System Active</div>
         <div className="sb-divider" />
         <div className="sb-item">{clock}</div>
         <div className="sb-divider" />
         <div className="sb-item"><span className="agents-num">9</span>&nbsp;Agents Ready</div>
         <div className="sb-right sb-item"><div className="dot dot-teal" /> {profile?.full_name || 'Team Rise'}</div>
-      </div>
+      </div>}
     </>
   )
 }

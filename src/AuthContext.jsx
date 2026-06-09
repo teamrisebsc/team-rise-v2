@@ -39,12 +39,38 @@ export function AuthProvider({ children }) {
     return error
   }
 
+  async function updateProfile(updates) {
+    if (!user) return { error: 'Not logged in' }
+    const { error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.id)
+    if (!error) setProfile(prev => ({ ...prev, ...updates }))
+    return { error }
+  }
+
+  async function signUp(email, password, fullName) {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    })
+    return error
+  }
+
+  async function resetPassword(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    })
+    return error
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut, updateProfile, resetPassword }}>
       {children}
     </AuthContext.Provider>
   )
