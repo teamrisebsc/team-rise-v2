@@ -1,6 +1,40 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/api/run-skill"
+  to = "/.netlify/functions/run-skill"
+  status = 200
+
+[[redirects]]
+  from = "/api/pipeline"
+  to = "/.netlify/functions/pipeline"
+  status = 200
+
+[[redirects]]
+  from = "/api/skills"
+  to = "/.netlify/functions/skills"
+  status = 200
+
+[[redirects]]
+  from = "/api/gx-stats"
+  to = "/.netlify/functions/not-available"
+  status = 200
+
+[[redirects]]
+  from = "/api/gx-sync"
+  to = "/.netlify/functions/not-available"
+  status = 200
+
+[[redirects]]
+  from = "/api/book-appointment"
+  to = "/.netlify/functions/not-available"
+  status = 200
 
 [[redirects]]
   from = "/*"
