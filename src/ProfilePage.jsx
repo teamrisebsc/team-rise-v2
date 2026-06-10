@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from './AuthContext'
 
-const ROLES = ['TA', 'A', 'SA', 'MD', 'SMD']
+const ROLES = ['TA', 'A', 'SA', 'MD', 'SMD', 'EMD', 'CEO', 'EVC', 'SEVC']
 
 const DEFAULT_AGENTS = [
   { icon: '🔄', name: 'Follow-Up Agent',    desc: 'Personal and team prospect pipeline',   prompt: 'Launch the Follow-Up Agent for Team RISE. Manage personal and team prospect pipelines and client annual reviews.', skill: '' },
