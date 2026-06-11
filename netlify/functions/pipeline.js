@@ -42,9 +42,24 @@ exports.handler = async (event) => {
 
     const lines = csv.split('\n').filter(l => l.trim())
     let dataStart = 0
+    let headerCols = []
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].toUpperCase().includes('FIRST NAME')) { dataStart = i + 1; break }
+      if (lines[i].toUpperCase().includes('FIRST NAME')) {
+        headerCols = parseCSVLine(lines[i]).map(h => h.replace(/"/g, '').trim().toLowerCase())
+        dataStart = i + 1
+        break
+      }
     }
+
+    function colIdx(keywords) {
+      for (const kw of keywords) {
+        const i = headerCols.findIndex(h => h.includes(kw))
+        if (i !== -1) return i
+      }
+      return -1
+    }
+    const phoneIdx = colIdx(['phone', 'cell', 'mobile', 'number'])
+    const emailIdx = colIdx(['email', 'e-mail'])
 
     const prospects = []
     for (let i = dataStart; i < lines.length && prospects.length < 30; i++) {
@@ -56,13 +71,15 @@ exports.handler = async (event) => {
       const last      = cols[4]?.replace(/"/g, '').trim() || 'N/A'
       const result    = cols[5]?.replace(/"/g, '').trim() || ''
       const notes     = cols[14]?.replace(/"/g, '').trim() || ''
+      const phone     = phoneIdx >= 0 ? (cols[phoneIdx]?.replace(/"/g, '').trim() || '') : ''
+      const email     = emailIdx >= 0 ? (cols[emailIdx]?.replace(/"/g, '').trim() || '') : ''
       const combined  = (result + ' ' + notes).toLowerCase()
 
       let heat = 'warm'
       if (combined.includes('interested') || combined.includes('considering') || combined.includes('wants to') || combined.includes('in person')) heat = 'hot'
       else if (combined.includes('is a recruit') || combined.includes('recruited') || combined.includes('converted') || combined.includes('iul')) heat = 'cool'
 
-      prospects.push({ name, role: 'Prospect', heat, last: last.split(' ')[0] || last, note: result || notes })
+      prospects.push({ name, role: 'Prospect', heat, last: last.split(' ')[0] || last, note: result || notes, phone, email })
     }
 
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ prospects }) }

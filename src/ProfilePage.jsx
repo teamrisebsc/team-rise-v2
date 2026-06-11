@@ -5,7 +5,6 @@ const ROLES = ['TA', 'A', 'SA', 'MD', 'SMD', 'EMD', 'CEO', 'EVC', 'SEVC']
 
 const DEFAULT_AGENTS = [
   { icon: '🔄', name: 'Follow-Up Agent',    desc: 'Personal and team prospect pipeline',   prompt: 'Launch the Follow-Up Agent for Team RISE. Manage personal and team prospect pipelines and client annual reviews.', skill: '' },
-  { icon: '📊', name: 'Closing Ratio',       desc: 'Step 1 to AMA to App conversion',       prompt: 'Launch the Closing Ratio Agent. Show conversion rates from Step 1 through to application submitted.', skill: '' },
   { icon: '🆕', name: 'Onboarding Agent',    desc: 'New recruit welcome and milestones',     prompt: 'Launch the Recruit Onboarding Agent for Team RISE. Check for new recruits who need welcome emails or follow-up.', skill: '' },
   { icon: '📜', name: 'Licensing Agent',     desc: 'Auto messages and test tracking',        prompt: 'Launch the Licensing Agent for Team RISE. Check the pipeline and show upcoming test dates.', skill: '' },
   { icon: '📅', name: 'Event Coordinator',   desc: 'Events, sponsorships and logistics',     prompt: 'Launch the Event Coordinator Agent for Team RISE. Show upcoming events and any logistics tasks.', skill: '' },
@@ -24,6 +23,7 @@ const DEFAULT_QUICK_ACTIONS = [
   { icon: '🎉', label: 'Recognition',           prompt: "Run the Recognition Agent to pull this week's recognition milestones and shoutouts.", skill: '' },
   { icon: '📐', label: 'Metrics (NPR/PPR/PPL)', prompt: 'Run the Metrics Agent to calculate current NPR, PPR, and PPL for Team RISE.', skill: 'mywfg-metrics' },
   { icon: '📋', label: 'BPM Follow-Up',         prompt: 'Run the Recruiting Pipeline Agent for BPM follow-up. Show which Captains need to follow up with their BPMs today.', skill: '' },
+  { icon: '⚖️', label: 'Closing Ratio',         prompt: 'Run the Closing Ratio Agent. Show conversion rates from Step 1 through to application submitted.', skill: '' },
 ]
 
 function Field({ label, value, onChange, type = 'text', placeholder = '', mono = false }) {

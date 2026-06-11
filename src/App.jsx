@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext'
 import ActivityFeed from './ActivityFeed'
 import BookAppointment from './BookAppointment'
 import ProfilePage from './ProfilePage'
+import Confetti from './Confetti'
 
 const QUICK_ACTIONS = [
   { icon: '📊', label: 'Daily Report',          prompt: 'Run the daily report for Team Rise.' },
@@ -13,11 +14,11 @@ const QUICK_ACTIONS = [
   { icon: '🎉', label: 'Recognition',           prompt: "Run the Recognition Agent to pull this week's recognition milestones and shoutouts." },
   { icon: '📐', label: 'Metrics (NPR/PPR/PPL)', prompt: 'Run the Metrics Agent to calculate current NPR, PPR, and PPL for Team Rise.' },
   { icon: '📋', label: 'BPM Follow-Up',         prompt: 'Run the Recruiting Pipeline Agent for BPM follow-up. Show which Captains need to follow up with their BPMs today.' },
+  { icon: '⚖️', label: 'Closing Ratio',         prompt: 'Run the Closing Ratio Agent. Show conversion rates from Step 1 through to application submitted.' },
 ]
 
 const AGENTS = [
   { icon: '🔄', name: 'Follow-Up Agent',    desc: 'Personal and team prospect pipeline',   prompt: 'Launch the Follow-Up Agent for Team Rise. Manage personal and team prospect pipelines and client annual reviews.' },
-  { icon: '📊', name: 'Closing Ratio',       desc: 'Step 1 to AMA to App conversion',       prompt: 'Launch the Closing Ratio Agent. Show conversion rates from Step 1 through to application submitted.' },
   { icon: '🆕', name: 'Onboarding Agent',    desc: 'New recruit welcome and milestones',     prompt: 'Launch the Recruit Onboarding Agent for Team Rise. Check for new recruits who need welcome emails or follow-up.' },
   { icon: '📜', name: 'Licensing Agent',     desc: 'Auto messages and test tracking',        prompt: 'Launch the Licensing Agent for Team Rise. Check the pipeline and show upcoming test dates.' },
   { icon: '📅', name: 'Event Coordinator',   desc: 'Events, sponsorships and logistics',     prompt: 'Launch the Event Coordinator Agent for Team Rise. Show upcoming events and any logistics tasks.' },
@@ -36,7 +37,12 @@ export default function App() {
   const [liveDate, setLiveDate] = useState('')
   const [pipeline, setPipeline] = useState([])
   const [gx, setGx]             = useState(DEFAULT_GX)
-  const [touched, setTouched]   = useState({})
+  const [touched, setTouched]     = useState({})
+  const [graduated, setGraduated] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('pipeline_graduated') || '{}') } catch { return {} }
+  })
+  const [graduating, setGraduating] = useState({})
+  const [confetti, setConfetti]     = useState({ active: false, name: '', type: 'teammate' })
   const [fnaFile, setFnaFile]   = useState(null)
   const [fnaDrag, setFnaDrag]   = useState(false)
   const [feedItems, setFeedItems] = useState([])
@@ -47,6 +53,7 @@ export default function App() {
   const [gxSyncing, setGxSyncing] = useState(false)
   const [showLovableBanner, setShowLovableBanner] = useState(true)
   const [lovableKey, setLovableKey] = useState(0)
+  const [showNotifications, setShowNotifications] = useState(false)
 
   useEffect(() => {
     if (profile?.id) {
@@ -110,6 +117,21 @@ export default function App() {
     return m ? m[1] : input.trim()
   }
 
+  function graduateProspect(name) {
+    setConfetti({ active: true, name, type: 'teammate' })
+    setGraduating(g => ({ ...g, [name]: true }))
+    setTimeout(() => {
+      const next = { ...graduated, [name]: true }
+      setGraduated(next)
+      localStorage.setItem('pipeline_graduated', JSON.stringify(next))
+      setGraduating(g => { const n = { ...g }; delete n[name]; return n })
+    }, 550)
+  }
+
+  function graduateClient(name) {
+    setConfetti({ active: true, name, type: 'client' })
+  }
+
   async function loadPipeline(sheetId, tabs) {
     const id = extractSheetId(sheetId)
     if (!id) return
@@ -165,10 +187,52 @@ export default function App() {
     if (file && file.type === 'application/pdf') setFnaFile(file)
   }
 
-  const hotCount  = pipeline.filter(p => p.heat === 'hot').length
-  const warmCount = pipeline.filter(p => p.heat === 'warm').length
+  const visiblePipeline = pipeline.filter(p => !graduated[p.name])
+  const hotCount  = visiblePipeline.filter(p => p.heat === 'hot').length
+  const warmCount = visiblePipeline.filter(p => p.heat === 'warm').length
   const pPct  = Math.min(100, Math.round((gx.partners.current / gx.partners.goal) * 100))
   const ptPct = Math.min(100, Math.round((gx.points.current / gx.points.goal) * 100))
+
+  const gxDaysLeft = (() => {
+    if (!gx.deadline) return null
+    const deadline = new Date(gx.deadline)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    deadline.setHours(0, 0, 0, 0)
+    return Math.max(0, Math.ceil((deadline - today) / (1000 * 60 * 60 * 24)))
+  })()
+
+  const notifications = (() => {
+    const items = []
+    // GX pace alerts
+    if (gx.deadline && gxDaysLeft !== null) {
+      const deadline = new Date(gx.deadline)
+      const monthStart = new Date(deadline.getFullYear(), deadline.getMonth(), 1)
+      const totalDays = Math.ceil((deadline - monthStart) / (1000 * 60 * 60 * 24)) + 1
+      const daysElapsed = totalDays - gxDaysLeft
+      const pacePct = daysElapsed / totalDays
+
+      const partnersPace = gx.partners.goal > 0 ? gx.partners.current / gx.partners.goal : 1
+      const pointsPace   = gx.points.goal   > 0 ? gx.points.current   / gx.points.goal   : 1
+
+      if (gxDaysLeft <= 7 && partnersPace < 1)
+        items.push({ level: 'urgent', text: `${gxDaysLeft}d left — ${gx.partners.current}/${gx.partners.goal} partners` })
+      else if (partnersPace < pacePct - 0.15)
+        items.push({ level: 'warning', text: `Partners behind pace — ${gx.partners.current}/${gx.partners.goal} (${Math.round(pacePct * 100)}% through month)` })
+
+      if (gxDaysLeft <= 7 && pointsPace < 1)
+        items.push({ level: 'urgent', text: `${gxDaysLeft}d left — ${gx.points.current.toLocaleString()}/${gx.points.goal.toLocaleString()} pts` })
+      else if (pointsPace < pacePct - 0.15)
+        items.push({ level: 'warning', text: `Points behind pace — ${gx.points.current.toLocaleString()}/${gx.points.goal.toLocaleString()}` })
+    }
+    // Pipeline alerts
+    if (hotCount > 0)
+      items.push({ level: 'urgent', text: `${hotCount} hot prospect${hotCount > 1 ? 's' : ''} need follow-up` })
+    if (warmCount > 0)
+      items.push({ level: 'info', text: `${warmCount} warm prospect${warmCount > 1 ? 's' : ''} in pipeline` })
+
+    return items
+  })()
 
   const firstName = profile?.full_name?.split(' ')[0] || 'there'
   const initials  = profile?.avatar_initials || (profile?.full_name?.split(' ').map(n => n[0]).join('') || '??')
@@ -186,10 +250,34 @@ export default function App() {
             <div className="user-avatar">{initials}</div>
             <span className="user-name">{firstName}</span>
           </div>
+          <div className="notif-wrap">
+            <button className="notif-bell" onClick={() => setShowNotifications(v => !v)} title="Notifications">
+              🔔
+              {notifications.length > 0 && <span className={`notif-count ${notifications.some(n => n.level === 'urgent') ? 'urgent' : 'warning'}`}>{notifications.length}</span>}
+            </button>
+            {showNotifications && (
+              <div className="notif-dropdown">
+                <div className="notif-header">Notifications</div>
+                {notifications.length === 0
+                  ? <div className="notif-empty">All clear!</div>
+                  : notifications.map((n, i) => (
+                      <div key={i} className={`notif-item ${n.level}`}>
+                        <span className="notif-dot" />
+                        {n.text}
+                      </div>
+                    ))
+                }
+              </div>
+            )}
+          </div>
           <button className="theme-toggle" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
-            {theme === 'dark' ? 'Light' : 'Dark'}
+            <span className="btn-icon">{theme === 'dark' ? '☀️' : '🌙'}</span>
+            <span className="btn-label">{theme === 'dark' ? 'Light' : 'Dark'}</span>
           </button>
-          <button className="logout-btn" onClick={signOut}>Sign Out</button>
+          <button className="logout-btn" onClick={signOut}>
+            <span className="btn-icon">⏏</span>
+            <span className="btn-label">Sign Out</span>
+          </button>
         </div>
       </header>
 
@@ -217,7 +305,14 @@ export default function App() {
               <div className="progress-track"><div className="progress-fill" style={{ width: ptPct + '%' }} /></div>
               <div className="gx-sub">{gx.points.current.toLocaleString()} of {gx.points.goal.toLocaleString()} pts</div>
             </div>
-            <div className="gx-deadline">Deadline: {gx.deadline}</div>
+            <div className="gx-deadline">
+              <span>Deadline: {gx.deadline}</span>
+              {gxDaysLeft !== null && (
+                <span className={`gx-days-badge ${gxDaysLeft <= 7 ? 'urgent' : gxDaysLeft <= 14 ? 'warning' : ''}`}>
+                  {gxDaysLeft === 0 ? 'Last day!' : `${gxDaysLeft}d left`}
+                </span>
+              )}
+            </div>
             <button className="sync-btn" onClick={syncGx} disabled={gxSyncing}>
             {gxSyncing ? 'Syncing…' : 'Sync GX'}
           </button>
@@ -328,15 +423,15 @@ export default function App() {
           <div className="pipeline-counts">
             <span className="heat-badge hot">{hotCount} Hot</span>
             <span className="heat-badge warm">{warmCount} Warm</span>
-            <span className="heat-badge total">{pipeline.length} Total</span>
+            <span className="heat-badge total">{visiblePipeline.length} Total</span>
           </div>
 
           {pipeline.length === 0 ? (
             <div className="pipeline-empty">Loading prospects...</div>
           ) : (
             <div className="pipeline-list">
-              {pipeline.map((p, i) => (
-                <div key={i} className={'prospect' + (touched[i] ? ' is-touched' : '')}>
+              {visiblePipeline.map((p, i) => (
+                <div key={p.name} className={'prospect' + (touched[i] ? ' is-touched' : '') + (graduating[p.name] ? ' is-graduating' : '')}>
                   <div className="prospect-dot" data-heat={p.heat} />
                   <div className="prospect-info">
                     <div className="prospect-top">
@@ -351,6 +446,8 @@ export default function App() {
                       {touched[i] ? 'Done' : 'Touched'}
                     </button>
                     <button className="matchup-btn" onClick={() => setMatchupProspect(p)}>Matchup</button>
+                    <button className="joined-btn" onClick={() => graduateProspect(p.name)}>New Teammate!</button>
+                    <button className="client-btn" onClick={() => graduateClient(p.name)}>New Client!</button>
                   </div>
                 </div>
               ))}
@@ -376,6 +473,13 @@ export default function App() {
         <div className="sb-item"><span className="agents-num">9</span>&nbsp;Agents Ready</div>
         <div className="sb-right sb-item"><div className="dot dot-teal" /> {profile?.full_name || 'Team Rise'}</div>
       </div>}
+
+      <Confetti
+        active={confetti.active}
+        name={confetti.name}
+        type={confetti.type}
+        onDone={() => setConfetti({ active: false, name: '', type: 'teammate' })}
+      />
     </>
   )
 }
