@@ -433,12 +433,18 @@ export default function App() {
             <div className="section-label">AI Agents</div>
             <div className="agents-grid">
               {activeAgents.map((a, i) => (
-                <div key={i} className={`card${a.queen ? ' queen' : ''}`} style={{ animationDelay: `${0.06 + i * 0.05}s` }} onClick={() => runSkill(a.prompt, a.name, a.skill)}>
+                <div
+                  key={i}
+                  className={`card${a.queen ? ' queen' : ''}${!reportConfigured ? ' card--locked' : ''}`}
+                  style={{ animationDelay: `${0.06 + i * 0.05}s` }}
+                  title={!reportConfigured ? 'Configure the Activity Feed report view to unlock agents' : ''}
+                  onClick={() => reportConfigured && runSkill(a.prompt, a.name, a.skill)}
+                >
                   <div className="card-icon">{a.icon}</div>
                   <div className="card-name">{a.name}</div>
                   <div className="card-desc">{a.desc}</div>
                   <div className="card-foot">
-                    <button className="launch" onClick={e => { e.stopPropagation(); runSkill(a.prompt, a.name, a.skill) }}>Launch</button>
+                    <button className="launch" disabled={!reportConfigured} onClick={e => { e.stopPropagation(); runSkill(a.prompt, a.name, a.skill) }}>Launch</button>
                   </div>
                 </div>
               ))}
