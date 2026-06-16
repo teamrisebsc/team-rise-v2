@@ -30,6 +30,48 @@ const AGENTS = [
 
 const DEFAULT_GX = { partners: { current: 0, goal: 3 }, points: { current: 0, goal: 15000 }, deadline: 'June 30, 2026' }
 
+const DEFAULT_REPORT_CONFIG = {
+  showTimestamp:    true,
+  showPdf:          true,
+  expandByDefault:  true,
+  density:          'normal',
+}
+
+function ReportConfigPanel({ config, onSave, onCancel }) {
+  const [cfg, setCfg] = useState({ ...config })
+  return (
+    <div className="report-config-panel">
+      <div className="rcp-title">Configure Report View</div>
+      <div className="rcp-desc">Choose how reports appear in your activity feed. Quick Actions unlock once you save.</div>
+      <div className="rcp-options">
+        <label className="rcp-toggle">
+          <input type="checkbox" checked={cfg.showTimestamp} onChange={e => setCfg({ ...cfg, showTimestamp: e.target.checked })} />
+          <span>Show timestamps on reports</span>
+        </label>
+        <label className="rcp-toggle">
+          <input type="checkbox" checked={cfg.showPdf} onChange={e => setCfg({ ...cfg, showPdf: e.target.checked })} />
+          <span>Show PDF export button</span>
+        </label>
+        <label className="rcp-toggle">
+          <input type="checkbox" checked={cfg.expandByDefault} onChange={e => setCfg({ ...cfg, expandByDefault: e.target.checked })} />
+          <span>Expand reports fully by default</span>
+        </label>
+        <div className="rcp-row">
+          <span className="rcp-row-label">Display density</span>
+          <div className="rcp-segmented">
+            <button className={cfg.density === 'normal' ? 'active' : ''} onClick={() => setCfg({ ...cfg, density: 'normal' })}>Normal</button>
+            <button className={cfg.density === 'compact' ? 'active' : ''} onClick={() => setCfg({ ...cfg, density: 'compact' })}>Compact</button>
+          </div>
+        </div>
+      </div>
+      <div className="rcp-footer">
+        <button className="rcp-cancel" onClick={onCancel}>Cancel</button>
+        <button className="rcp-save" onClick={() => onSave(cfg)}>Save &amp; Unlock</button>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const { profile, signOut, updateProfile } = useAuth()
   const [theme, setTheme]       = useState(() => localStorage.getItem('tr-theme-' + (profile?.id || 'default')) || 'dark')
@@ -54,6 +96,14 @@ export default function App() {
   const [showLovableBanner, setShowLovableBanner] = useState(true)
   const [lovableKey, setLovableKey] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [reportConfigured, setReportConfigured] = useState(() =>
+    localStorage.getItem('tr-report-configured') === 'true'
+  )
+  const [reportConfig, setReportConfig] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('tr-report-config') || 'null') || DEFAULT_REPORT_CONFIG }
+    catch { return DEFAULT_REPORT_CONFIG }
+  })
+  const [showReportConfig, setShowReportConfig] = useState(false)
 
   useEffect(() => {
     if (profile?.id) {
@@ -178,6 +228,14 @@ export default function App() {
     }
     setFeedLoading(false)
     setActiveSkill('')
+  }
+
+  function saveReportConfig(cfg) {
+    setReportConfig(cfg)
+    setReportConfigured(true)
+    localStorage.setItem('tr-report-config', JSON.stringify(cfg))
+    localStorage.setItem('tr-report-configured', 'true')
+    setShowReportConfig(false)
   }
 
   function handleDrop(e) {
@@ -357,7 +415,14 @@ export default function App() {
             <div className="section-label">Quick Actions</div>
             <div className="pill-grid">
               {activeQuickActions.map((a, i) => (
-                <button key={i} className="pill" style={{ animationDelay: `${0.03 + i * 0.04}s` }} onClick={() => runSkill(a.prompt, a.label, a.skill)}>
+                <button
+                  key={i}
+                  className={`pill${!reportConfigured ? ' pill--locked' : ''}`}
+                  style={{ animationDelay: `${0.03 + i * 0.04}s` }}
+                  disabled={!reportConfigured}
+                  title={!reportConfigured ? 'Configure the Activity Feed report view to unlock quick actions' : ''}
+                  onClick={() => runSkill(a.prompt, a.label, a.skill)}
+                >
                   <span className="em">{a.icon}</span> {a.label}
                 </button>
               ))}
@@ -412,8 +477,23 @@ export default function App() {
 
           {/* Activity Feed */}
           <section className="feed-section">
-            <div className="section-label">Activity Feed</div>
-            <ActivityFeed items={feedItems} loading={feedLoading} activeSkill={activeSkill} />
+            <div className="feed-header">
+              <div className="section-label" style={{ marginBottom: 0 }}>Activity Feed</div>
+              <button
+                className={`feed-config-btn${reportConfigured ? ' configured' : ''}`}
+                onClick={() => setShowReportConfig(v => !v)}
+              >
+                {reportConfigured ? '⚙ Edit View' : '⚙ Configure Report View'}
+              </button>
+            </div>
+            {showReportConfig && (
+              <ReportConfigPanel
+                config={reportConfig}
+                onSave={saveReportConfig}
+                onCancel={() => setShowReportConfig(false)}
+              />
+            )}
+            <ActivityFeed items={feedItems} loading={feedLoading} activeSkill={activeSkill} reportConfig={reportConfig} />
           </section>
         </main>
 

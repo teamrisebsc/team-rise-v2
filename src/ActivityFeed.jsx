@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 function renderMarkdown(text) {
   if (!text) return ''
   let html = text
@@ -31,7 +33,15 @@ function renderMarkdown(text) {
   return `<p>${html}</p>`
 }
 
-function ReportCard({ item, index }) {
+function ReportCard({ item, index, reportConfig = {} }) {
+  const {
+    showTimestamp   = true,
+    showPdf         = true,
+    expandByDefault = true,
+    density         = 'normal',
+  } = reportConfig
+
+  const [expanded, setExpanded] = useState(expandByDefault)
   const isError = !item.ok && item.ok !== undefined
 
   function handlePrint() {
@@ -61,30 +71,37 @@ function ReportCard({ item, index }) {
   }
 
   return (
-    <div className={`report-card${isError ? ' report-error' : ''}`} style={{ animationDelay: `${index * 0.05}s` }}>
+    <div className={`report-card${isError ? ' report-error' : ''}${density === 'compact' ? ' compact' : ''}`} style={{ animationDelay: `${index * 0.05}s` }}>
       <div className="report-header">
         <div className="report-header-left">
           <span className="report-skill">{item.skill}</span>
           {isError && <span className="report-badge error">Error</span>}
+          {!expandByDefault && (
+            <button className="report-expand-btn" onClick={() => setExpanded(e => !e)}>
+              {expanded ? '▲ Collapse' : '▼ Expand'}
+            </button>
+          )}
         </div>
         <div className="report-header-right">
-          <span className="report-time">{item.time}</span>
-          {!isError && (
+          {showTimestamp && <span className="report-time">{item.time}</span>}
+          {showPdf && !isError && (
             <button className="report-print-btn" onClick={handlePrint} title="Print / Save as PDF">
               ⬇ PDF
             </button>
           )}
         </div>
       </div>
-      <div
-        className="report-body"
-        dangerouslySetInnerHTML={{ __html: renderMarkdown(item.response) }}
-      />
+      {expanded && (
+        <div
+          className="report-body"
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(item.response) }}
+        />
+      )}
     </div>
   )
 }
 
-export default function ActivityFeed({ items, loading, activeSkill }) {
+export default function ActivityFeed({ items, loading, activeSkill, reportConfig = {} }) {
   if (loading) {
     return (
       <div className="feed-panel">
@@ -108,7 +125,7 @@ export default function ActivityFeed({ items, loading, activeSkill }) {
   return (
     <div className="feed-panel">
       {items.map((item, i) => (
-        <ReportCard key={i} item={item} index={i} />
+        <ReportCard key={i} item={item} index={i} reportConfig={reportConfig} />
       ))}
     </div>
   )
