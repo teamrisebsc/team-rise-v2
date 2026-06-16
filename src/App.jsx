@@ -37,12 +37,24 @@ const DEFAULT_REPORT_CONFIG = {
   density:          'normal',
 }
 
-function ReportConfigPanel({ config, onSave, onCancel }) {
+function ReportConfigPanel({ config, quickActions, agents, enabledReports, onSave, onCancel }) {
   const [cfg, setCfg] = useState({ ...config })
+  const [enabled, setEnabled] = useState(new Set(enabledReports))
+
+  function toggle(key) {
+    setEnabled(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
   return (
     <div className="report-config-panel">
       <div className="rcp-title">Configure Report View</div>
-      <div className="rcp-desc">Choose how reports appear in your activity feed. Quick Actions unlock once you save.</div>
+      <div className="rcp-desc">Enable reports as you build them. Display settings apply to all active reports.</div>
+
+      <div className="rcp-section-head">Display Settings</div>
       <div className="rcp-options">
         <label className="rcp-toggle">
           <input type="checkbox" checked={cfg.showTimestamp} onChange={e => setCfg({ ...cfg, showTimestamp: e.target.checked })} />
@@ -64,9 +76,30 @@ function ReportConfigPanel({ config, onSave, onCancel }) {
           </div>
         </div>
       </div>
+
+      <div className="rcp-section-head">Quick Actions</div>
+      <div className="rcp-report-list">
+        {quickActions.map(a => (
+          <label className="rcp-toggle" key={a.label}>
+            <input type="checkbox" checked={enabled.has(a.label)} onChange={() => toggle(a.label)} />
+            <span>{a.icon} {a.label}</span>
+          </label>
+        ))}
+      </div>
+
+      <div className="rcp-section-head">AI Agents</div>
+      <div className="rcp-report-list">
+        {agents.map(a => (
+          <label className="rcp-toggle" key={a.name}>
+            <input type="checkbox" checked={enabled.has(a.name)} onChange={() => toggle(a.name)} />
+            <span>{a.icon} {a.name}</span>
+          </label>
+        ))}
+      </div>
+
       <div className="rcp-footer">
         <button className="rcp-cancel" onClick={onCancel}>Cancel</button>
-        <button className="rcp-save" onClick={() => onSave(cfg)}>Save &amp; Unlock</button>
+        <button className="rcp-save" onClick={() => onSave(cfg, enabled)}>Save</button>
       </div>
     </div>
   )
@@ -96,9 +129,10 @@ export default function App() {
   const [showLovableBanner, setShowLovableBanner] = useState(true)
   const [lovableKey, setLovableKey] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [reportConfigured, setReportConfigured] = useState(() =>
-    localStorage.getItem('tr-report-configured') === 'true'
-  )
+  const [configuredReports, setConfiguredReports] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('tr-configured-reports') || '[]')) }
+    catch { return new Set() }
+  })
   const [reportConfig, setReportConfig] = useState(() => {
     try { return JSON.parse(localStorage.getItem('tr-report-config') || 'null') || DEFAULT_REPORT_CONFIG }
     catch { return DEFAULT_REPORT_CONFIG }
@@ -230,11 +264,11 @@ export default function App() {
     setActiveSkill('')
   }
 
-  function saveReportConfig(cfg) {
+  function saveReportConfig(cfg, enabledSet) {
     setReportConfig(cfg)
-    setReportConfigured(true)
+    setConfiguredReports(enabledSet)
     localStorage.setItem('tr-report-config', JSON.stringify(cfg))
-    localStorage.setItem('tr-report-configured', 'true')
+    localStorage.setItem('tr-configured-reports', JSON.stringify([...enabledSet]))
     setShowReportConfig(false)
   }
 
@@ -417,10 +451,10 @@ export default function App() {
               {activeQuickActions.map((a, i) => (
                 <button
                   key={i}
-                  className={`pill${!reportConfigured ? ' pill--locked' : ''}`}
+                  className={`pill${!configuredReports.has(a.label) ? ' pill--locked' : ''}`}
                   style={{ animationDelay: `${0.03 + i * 0.04}s` }}
-                  disabled={!reportConfigured}
-                  title={!reportConfigured ? 'Configure the Activity Feed report view to unlock quick actions' : ''}
+                  disabled={!configuredReports.has(a.label)}
+                  title={!configuredReports.has(a.label) ? 'Enable this report in Configure Report View to unlock' : ''}
                   onClick={() => runSkill(a.prompt, a.label, a.skill)}
                 >
                   <span className="em">{a.icon}</span> {a.label}
@@ -435,16 +469,16 @@ export default function App() {
               {activeAgents.map((a, i) => (
                 <div
                   key={i}
-                  className={`card${a.queen ? ' queen' : ''}${!reportConfigured ? ' card--locked' : ''}`}
+                  className={`card${a.queen ? ' queen' : ''}${!configuredReports.has(a.name) ? ' card--locked' : ''}`}
                   style={{ animationDelay: `${0.06 + i * 0.05}s` }}
-                  title={!reportConfigured ? 'Configure the Activity Feed report view to unlock agents' : ''}
-                  onClick={() => reportConfigured && runSkill(a.prompt, a.name, a.skill)}
+                  title={!configuredReports.has(a.name) ? 'Enable this agent in Configure Report View to unlock' : ''}
+                  onClick={() => configuredReports.has(a.name) && runSkill(a.prompt, a.name, a.skill)}
                 >
                   <div className="card-icon">{a.icon}</div>
                   <div className="card-name">{a.name}</div>
                   <div className="card-desc">{a.desc}</div>
                   <div className="card-foot">
-                    <button className="launch" disabled={!reportConfigured} onClick={e => { e.stopPropagation(); runSkill(a.prompt, a.name, a.skill) }}>Launch</button>
+                    <button className="launch" disabled={!configuredReports.has(a.name)} onClick={e => { e.stopPropagation(); runSkill(a.prompt, a.name, a.skill) }}>Launch</button>
                   </div>
                 </div>
               ))}
@@ -486,15 +520,18 @@ export default function App() {
             <div className="feed-header">
               <div className="section-label" style={{ marginBottom: 0 }}>Activity Feed</div>
               <button
-                className={`feed-config-btn${reportConfigured ? ' configured' : ''}`}
+                className={`feed-config-btn${configuredReports.size > 0 ? ' configured' : ''}`}
                 onClick={() => setShowReportConfig(v => !v)}
               >
-                {reportConfigured ? '⚙ Edit View' : '⚙ Configure Report View'}
+                {configuredReports.size > 0 ? `⚙ ${configuredReports.size} Active` : '⚙ Configure Reports'}
               </button>
             </div>
             {showReportConfig && (
               <ReportConfigPanel
                 config={reportConfig}
+                quickActions={activeQuickActions}
+                agents={activeAgents}
+                enabledReports={configuredReports}
                 onSave={saveReportConfig}
                 onCancel={() => setShowReportConfig(false)}
               />
