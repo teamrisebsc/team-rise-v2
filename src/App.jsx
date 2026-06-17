@@ -4,6 +4,7 @@ import ActivityFeed from './ActivityFeed'
 import BookAppointment from './BookAppointment'
 import ProfilePage from './ProfilePage'
 import Confetti from './Confetti'
+import RecruitPipeline from './RecruitPipeline'
 
 const QUICK_ACTIONS = [
   { icon: '📊', label: 'Daily Report',          prompt: 'Run the daily report for Team Rise.' },
@@ -138,6 +139,8 @@ export default function App() {
     catch { return DEFAULT_REPORT_CONFIG }
   })
   const [showReportConfig, setShowReportConfig] = useState(false)
+  const [recruitSteps, setRecruitSteps]   = useState({ step3: [], step4: [], step5: [] })
+  const [recruitLoading, setRecruitLoading] = useState(false)
 
   useEffect(() => {
     if (profile?.id) {
@@ -163,6 +166,20 @@ export default function App() {
   useEffect(() => {
     if (profile?.google_sheet_id) loadPipeline(profile.google_sheet_id, profile.google_sheet_tabs)
   }, [profile])
+
+  useEffect(() => {
+    loadRecruitSteps()
+  }, [])
+
+  async function loadRecruitSteps() {
+    setRecruitLoading(true)
+    try {
+      const res = await fetch('/api/recruit-pipeline')
+      const data = await res.json()
+      if (data.step3 || data.step4 || data.step5) setRecruitSteps(data)
+    } catch(e) { /* silent */ }
+    setRecruitLoading(false)
+  }
 
   useEffect(() => {
     if (profile?.full_name) fetchGxStats()
@@ -409,6 +426,8 @@ export default function App() {
             {gxSyncing ? 'Syncing…' : 'Sync GX'}
           </button>
           </aside>
+
+          <RecruitPipeline steps={recruitSteps} loading={recruitLoading} />
 
           <div className="lovable-panel">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>

@@ -312,6 +312,36 @@ header {
 .fna-clear-btn { padding: 7px 14px; background: transparent; border: 1px solid rgba(0,100,100,0.4); border-radius: 6px; color: var(--text-muted); font-family: var(--mono); font-size: 11px; cursor: pointer; transition: all 0.2s; }
 .fna-clear-btn:hover { color: var(--text); border-color: rgba(0,130,130,0.6); }
 
+/* RECRUIT PIPELINE */
+.rp-panel { background: linear-gradient(180deg, #071515 0%, var(--bg-card) 100%); border: 1px solid var(--teal-border); border-radius: 10px; padding: 18px; }
+
+.rp-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
+.rp-tab { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 6px; background: rgba(0,60,60,0.2); border: 1px solid rgba(0,100,100,0.2); border-radius: 8px; cursor: pointer; transition: all 0.18s; text-align: center; }
+.rp-tab:hover { background: rgba(0,90,90,0.3); }
+.rp-tab-step { font-family: var(--mono); font-size: 9px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; }
+.rp-tab-count { font-family: var(--mono); font-size: 18px; font-weight: 700; line-height: 1.1; color: var(--text-muted); }
+.rp-tab-label { font-size: 10px; font-weight: 600; color: var(--text-muted); line-height: 1.2; }
+
+.rp-tab--blue.active  { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.4); }
+.rp-tab--blue.active .rp-tab-count  { color: #60a5fa; }
+.rp-tab--blue.active .rp-tab-label  { color: #93c5fd; }
+.rp-tab--amber.active { background: rgba(200,120,0,0.12); border-color: rgba(220,140,0,0.4); }
+.rp-tab--amber.active .rp-tab-count { color: #f0a500; }
+.rp-tab--amber.active .rp-tab-label { color: #fbbf24; }
+.rp-tab--green.active { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.35); }
+.rp-tab--green.active .rp-tab-count { color: #4ade80; }
+.rp-tab--green.active .rp-tab-label { color: #86efac; }
+
+.rp-list { max-height: 220px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--teal-border) transparent; }
+.rp-row { padding: 8px 4px; border-bottom: 1px solid rgba(0,100,100,0.12); }
+.rp-row:last-child { border-bottom: none; }
+.rp-row-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rp-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.rp-days { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 8px; background: rgba(0,128,128,0.1); color: var(--teal-bright); border: 1px solid rgba(0,128,128,0.25); white-space: nowrap; }
+.rp-days.overdue { background: rgba(239,68,68,0.1); color: #f87171; border-color: rgba(239,68,68,0.3); }
+.rp-contact { font-family: var(--mono); font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.rp-empty { font-size: 12px; color: var(--text-muted); font-style: italic; padding: 16px 4px; text-align: center; }
+
 /* ACTIVITY FEED */
 .feed-section { margin-bottom: 8px; }
 .feed-panel { background: #050e0e; border: 1px solid rgba(0,100,100,0.2); border-radius: 10px; padding: 16px; min-height: 120px; }
