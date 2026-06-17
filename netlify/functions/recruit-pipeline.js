@@ -7,6 +7,18 @@ const CORS = {
 const SYNC_SHEET_ID = '1F5ntZXHa4eg1dKf0XR_9yClmeoZOpAW8_zm1GeJaEEY'
 const TAB = 'Recruit Tracker'
 
+// Column indices from scrape.js output order (row 0 is a misaligned header — skip it)
+const COL = {
+  NAME:       2,
+  EMAIL:      4,
+  CONTACT:    5,
+  START_DATE: 8,
+  FIELD_APPT_1: 19,
+  FIELD_APPT_2: 20,
+  FIELD_APPT_3: 21,
+  IS_ACTIVE:  28,
+}
+
 function parseCSVLine(line) {
   const result = []
   let current = ''
@@ -42,49 +54,28 @@ exports.handler = async (event) => {
     const csv = await res.text()
     const lines = csv.split('\n').filter(l => l.trim())
 
-    const headerLine = parseCSVLine(lines[0]).map(h => clean(h).toLowerCase())
-
-    function col(...keywords) {
-      for (const kw of keywords) {
-        const i = headerLine.findIndex(h => h.includes(kw))
-        if (i !== -1) return i
-      }
-      return -1
-    }
-
-    // Detect columns; fall back to known scrape.js output order
-    const NAME_IDX    = col('name')          >= 0 ? col('name')          : 2
-    const EMAIL_IDX   = col('email')         >= 0 ? col('email')         : 4
-    const CONTACT_IDX = col('contact', 'phone', 'cell') >= 0 ? col('contact', 'phone', 'cell') : 5
-    const START_IDX   = col('start_date', 'start date') >= 0 ? col('start_date', 'start date') : 8
-    const APPT1_IDX   = col('field_appt_1', 'appt_1', 'appt1') >= 0 ? col('field_appt_1', 'appt_1', 'appt1') : 19
-    const APPT2_IDX   = col('field_appt_2', 'appt_2', 'appt2') >= 0 ? col('field_appt_2', 'appt_2', 'appt2') : 20
-    const APPT3_IDX   = col('field_appt_3', 'appt_3', 'appt3') >= 0 ? col('field_appt_3', 'appt_3', 'appt3') : 21
-    const ACTIVE_IDX  = col('is_active', 'active') >= 0 ? col('is_active', 'active') : 28
-
-    const hasHeader = headerLine[NAME_IDX]?.includes('name')
-    const dataStart = hasHeader ? 1 : 0
-
     const step3 = [], step4 = [], step5 = []
 
-    for (let i = dataStart; i < lines.length; i++) {
-      const cols    = parseCSVLine(lines[i])
-      const name    = clean(cols[NAME_IDX])
+    // Row 0 is header (misaligned from data cols) — start at 1
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i])
+
+      const name = clean(cols[COL.NAME])
       if (!name) continue
 
-      const isActive = clean(cols[ACTIVE_IDX])
-      if (isActive === '0' || isActive.toLowerCase() === 'false') continue
+      const isActive = clean(cols[COL.IS_ACTIVE])
+      if (isActive !== '1' && isActive.toLowerCase() !== 'true') continue
 
-      const email   = clean(cols[EMAIL_IDX])
-      const contact = clean(cols[CONTACT_IDX])
-      const startDate = clean(cols[START_IDX])
-      const appt1   = clean(cols[APPT1_IDX])
-      const appt2   = clean(cols[APPT2_IDX])
-      const appt3   = clean(cols[APPT3_IDX])
+      const contact   = clean(cols[COL.CONTACT])
+      const email     = clean(cols[COL.EMAIL])
+      const startDate = clean(cols[COL.START_DATE])
+      const appt1     = clean(cols[COL.FIELD_APPT_1])
+      const appt2     = clean(cols[COL.FIELD_APPT_2])
+      const appt3     = clean(cols[COL.FIELD_APPT_3])
 
-      if (appt3) continue  // completed all 3 steps
+      if (appt3) continue  // all three steps complete
 
-      const recruit = { name, email, contact, startDate, appt1, appt2, appt3 }
+      const recruit = { name, contact, email, startDate, appt1, appt2, appt3 }
 
       if (!appt1) {
         recruit.days = daysSince(startDate)
@@ -98,10 +89,11 @@ exports.handler = async (event) => {
       }
     }
 
-    // Step 3: newest first (just joined); Steps 4 & 5: most overdue first
-    step3.sort((a, b) => (b.days || 0) - (a.days || 0))
-    step4.sort((a, b) => (b.days || 0) - (a.days || 0))
-    step5.sort((a, b) => (b.days || 0) - (a.days || 0))
+    // Most overdue first for all steps
+    const byDays = (a, b) => (b.days || 0) - (a.days || 0)
+    step3.sort(byDays)
+    step4.sort(byDays)
+    step5.sort(byDays)
 
     return {
       statusCode: 200,
