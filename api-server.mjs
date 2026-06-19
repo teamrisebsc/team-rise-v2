@@ -9,6 +9,42 @@ const SCRAPER_DIR   = 'C:/Users/Mouth/bscpro-scraper'
 const GX_CACHE_FILE = 'C:/Users/Mouth/bscpro-scraper/data/gx_final_jun2026.json'
 const SKILLS_DIR    = 'C:/Users/Mouth/.claude/commands'
 
+// Load .env so VITE_SUPABASE_* are available
+try {
+  const envFile = fs.readFileSync(new URL('.env', import.meta.url), 'utf-8')
+  for (const line of envFile.split('\n')) {
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/)
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim()
+  }
+} catch {}
+
+async function pushGxToSupabase(entries) {
+  const url = process.env.VITE_SUPABASE_URL
+  const key = process.env.VITE_SUPABASE_ANON_KEY
+  if (!url || !key || !entries?.length) return
+  const rows = entries.map(e => ({
+    name:       e.name,
+    data:       e,
+    updated_at: new Date().toISOString(),
+  }))
+  try {
+    const res = await fetch(`${url}/rest/v1/gx_cache`, {
+      method: 'POST',
+      headers: {
+        apikey:         key,
+        Authorization:  `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        Prefer:         'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify(rows),
+    })
+    if (!res.ok) console.error('[gx] Supabase push error:', res.status, await res.text())
+    else console.log(`[gx] Pushed ${rows.length} entries to Supabase`)
+  } catch (e) {
+    console.error('[gx] Supabase push failed:', e.message)
+  }
+}
+
 const TAG = {
   'Step 1':     '107687',
   'Step 2':     '107688',
@@ -153,6 +189,7 @@ const server = http.createServer(async (req, res) => {
       })
       const raw   = fs.readFileSync(GX_CACHE_FILE, 'utf-8')
       const data  = JSON.parse(raw)
+      await pushGxToSupabase(data)
       const entry = findEntry(data, name)
       res.writeHead(200, cors)
       res.end(JSON.stringify({
@@ -466,6 +503,10 @@ const server = http.createServer(async (req, res) => {
   res.end(JSON.stringify({ error: 'Not found' }))
 })
 
-server.listen(3001, () => {
+server.listen(3001, async () => {
   console.log('[API] Appointment server running on http://localhost:3001')
+  try {
+    const raw = fs.readFileSync(GX_CACHE_FILE, 'utf-8')
+    await pushGxToSupabase(JSON.parse(raw))
+  } catch {}
 })

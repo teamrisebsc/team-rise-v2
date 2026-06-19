@@ -33,7 +33,7 @@
 
 [[redirects]]
   from = "/api/gx-stats"
-  to = "/.netlify/functions/not-available"
+  to = "/.netlify/functions/gx-stats"
   status = 200
 
 [[redirects]]
