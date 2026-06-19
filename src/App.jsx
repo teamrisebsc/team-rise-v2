@@ -562,7 +562,7 @@ export default function App() {
 
         {/* RIGHT — Pipeline + Book a Matchup */}
         <aside className="col-right">
-          <div className="panel-label">Pipeline - Needs Action</div>
+          <div className="panel-label">Personal Prospect Pipeline</div>
           <div className="pipeline-counts">
             <span className="heat-badge hot">{hotCount} Hot</span>
             <span className="heat-badge warm">{warmCount} Warm</span>
