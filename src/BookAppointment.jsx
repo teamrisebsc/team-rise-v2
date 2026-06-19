@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from './AuthContext'
+import { supabase } from './supabaseClient'
 
 const STEPS = ['Step 1', 'Step 2', 'Step 3', 'Step 4', 'Step 5', 'Phone Zone', 'BPM/VGO', 'Other']
 
@@ -47,6 +48,7 @@ export default function BookAppointment({ prospect, onClose, onBooked }) {
   const [loading,         setLoading]        = useState(false)
   const [result,          setResult]         = useState(null)
   const [error,           setError]          = useState('')
+  const [jobId,           setJobId]          = useState(null)
   // Follow-up sub-modal: Create follow-up appointment (when secondAppt=yes)
   const [followupDate,    setFollowupDate]   = useState('')
   const [followupTime,    setFollowupTime]   = useState('')
@@ -68,11 +70,37 @@ export default function BookAppointment({ prospect, onClose, onBooked }) {
     setHowKnown('yes'); setHowLong('no'); setWork('no'); setMarried('no')
     setKids('no'); setGoals(''); setDissatisfaction('yes'); setStar('not-yet')
     setTrainerRequest('no'); setShowQ(false); setResult(null); setError('')
+    setJobId(null)
     setFollowupDate(''); setFollowupTime(''); setFollowupStep('Step 2')
     setProdProvider(''); setProdProduct(''); setProdPolicy('')
     setProdPoints(''); setProdNotes(''); setProdReferrals('0')
     setBpmDate(''); setBpmNote('')
   }
+
+  // Poll Supabase for queued job status (Netlify path)
+  useEffect(() => {
+    if (!jobId) return
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .from('appointment_queue')
+        .select('status, result, error_msg')
+        .eq('id', jobId)
+        .single()
+      if (data?.status === 'complete') {
+        clearInterval(interval)
+        setResult(data.result || { ok: true })
+        setLoading(false)
+        setJobId(null)
+        setTimeout(() => { onBooked?.(); resetForm() }, 4000)
+      } else if (data?.status === 'error') {
+        clearInterval(interval)
+        setError(data.error_msg || 'Booking failed on the worker.')
+        setLoading(false)
+        setJobId(null)
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [jobId])
 
   useEffect(() => {
     if (prospect) {
@@ -132,16 +160,23 @@ export default function BookAppointment({ prospect, onClose, onBooked }) {
       }),
       })
       const data = await res.json()
-      if (data.ok || data.status === 'success') {
+      if (data.queued && data.job_id) {
+        // Netlify path — job queued, poll Supabase for result
+        setJobId(data.job_id)
+        // keep loading = true while polling
+      } else if (data.ok || data.status === 'success') {
+        // Local path — synchronous result
         setResult(data)
-        setTimeout(() => { onBooked && onBooked(); resetForm() }, 4000)
+        setLoading(false)
+        setTimeout(() => { onBooked?.(); resetForm() }, 4000)
       } else {
         setError(data.error || 'Submission failed. Check the terminal for details.')
+        setLoading(false)
       }
     } catch (err) {
-      setError('Could not reach the appointment server. Make sure api-server.mjs is running.')
+      setError('Could not reach the appointment server.')
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   if (result) {
@@ -455,7 +490,7 @@ export default function BookAppointment({ prospect, onClose, onBooked }) {
       {error && <div className="appt-error">{error}</div>}
 
       <button className={'appt-submit-btn' + (loading ? ' loading' : '')} type="submit" disabled={loading}>
-        {loading ? 'Submitting to BSCpro…' : type === 'followup' ? 'Book Follow-Up in BSCpro' : `Book ${type === 'matchup' ? 'Matchup' : 'Appointment'} in BSCpro`}
+        {loading ? (jobId ? 'Booking in BSCpro… (~30 sec)' : 'Submitting…') : type === 'followup' ? 'Book Follow-Up in BSCpro' : `Book ${type === 'matchup' ? 'Matchup' : 'Appointment'} in BSCpro`}
       </button>
     </form>
   )

@@ -43,7 +43,7 @@
 
 [[redirects]]
   from = "/api/book-appointment"
-  to = "/.netlify/functions/not-available"
+  to = "/.netlify/functions/book-appointment"
   status = 200
 
 [[redirects]]
