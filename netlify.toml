@@ -22,6 +22,16 @@
   status = 200
 
 [[redirects]]
+  from = "/api/recruit-pipeline"
+  to = "/.netlify/functions/recruit-pipeline"
+  status = 200
+
+[[redirects]]
+  from = "/api/recruit-step3"
+  to = "/.netlify/functions/not-available"
+  status = 200
+
+[[redirects]]
   from = "/api/gx-stats"
   to = "/.netlify/functions/not-available"
   status = 200
