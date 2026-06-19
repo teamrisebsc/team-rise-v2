@@ -11,6 +11,8 @@ export default defineConfig({
       '/api/gx-sync': 'http://localhost:3001',
       '/api/run-skill': 'http://localhost:3001',
       '/api/skills': 'http://localhost:3001',
+      '/api/recruit-pipeline': 'http://localhost:3001',
+      '/api/recruit-step3': 'http://localhost:3001',
     }
   }
 })

@@ -24,7 +24,7 @@ const AGENTS = [
   { icon: '📜', name: 'Licensing Agent',     desc: 'Auto messages and test tracking',        prompt: 'Launch the Licensing Agent for Team Rise. Check the pipeline and show upcoming test dates.' },
   { icon: '📅', name: 'Event Coordinator',   desc: 'Events, sponsorships and logistics',     prompt: 'Launch the Event Coordinator Agent for Team Rise. Show upcoming events and any logistics tasks.' },
   { icon: '🏅', name: 'Recognition Agent',   desc: 'Promotions and production awards',       prompt: "Launch the Recognition Agent for Team Rise. Pull this week's promotions and production awards." },
-  { icon: '📁', name: 'Recruiting Pipeline', desc: 'Steps 4/5, BPM and recruit tracker',     prompt: 'Launch the Recruiting Pipeline Agent for Team Rise. Show Steps 4 and 5 status and BPM follow-ups.' },
+  { icon: '📁', name: 'Fast Start Pipeline', desc: 'Steps 4/5, BPM and recruit tracker',     prompt: 'Launch the Recruiting Pipeline Agent for Team Rise. Show Steps 4 and 5 status and BPM follow-ups.' },
   { icon: '📱', name: 'Social Media Agent',  desc: 'Instagram, TikTok and content',          prompt: 'Launch the Social Media Agent for Team Rise. Help plan content or write captions.' },
   { icon: '👑', name: 'Queen Bee',           desc: 'Master orchestrator for all tasks',       prompt: 'Queen Bee, I need your help. What can you do for Team Rise today?', queen: true },
 ]
@@ -139,7 +139,7 @@ export default function App() {
     catch { return DEFAULT_REPORT_CONFIG }
   })
   const [showReportConfig, setShowReportConfig] = useState(false)
-  const [recruitSteps, setRecruitSteps]   = useState({ step3: [], step4: [], step5: [] })
+  const [recruitList, setRecruitList]     = useState([])
   const [recruitLoading, setRecruitLoading] = useState(false)
 
   useEffect(() => {
@@ -168,15 +168,16 @@ export default function App() {
   }, [profile])
 
   useEffect(() => {
-    loadRecruitSteps()
-  }, [])
+    if (profile?.full_name) loadRecruitSteps()
+  }, [profile?.full_name])
 
   async function loadRecruitSteps() {
     setRecruitLoading(true)
     try {
-      const res = await fetch('/api/recruit-pipeline')
+      const name = profile?.full_name || ''
+      const res = await fetch(`/api/recruit-pipeline?name=${encodeURIComponent(name)}`)
       const data = await res.json()
-      if (data.step3 || data.step4 || data.step5) setRecruitSteps(data)
+      if (data.recruits) setRecruitList(data.recruits)
     } catch(e) { /* silent */ }
     setRecruitLoading(false)
   }
@@ -427,7 +428,7 @@ export default function App() {
           </button>
           </aside>
 
-          <RecruitPipeline steps={recruitSteps} loading={recruitLoading} />
+          <RecruitPipeline recruits={recruitList} loading={recruitLoading} onRefresh={loadRecruitSteps} />
 
           <div className="lovable-panel">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>

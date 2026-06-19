@@ -9,7 +9,7 @@ const DEFAULT_AGENTS = [
   { icon: '📜', name: 'Licensing Agent',     desc: 'Auto messages and test tracking',        prompt: 'Launch the Licensing Agent for Team RISE. Check the pipeline and show upcoming test dates.', skill: '' },
   { icon: '📅', name: 'Event Coordinator',   desc: 'Events, sponsorships and logistics',     prompt: 'Launch the Event Coordinator Agent for Team RISE. Show upcoming events and any logistics tasks.', skill: '' },
   { icon: '🏅', name: 'Recognition Agent',   desc: 'Promotions and production awards',       prompt: "Launch the Recognition Agent for Team RISE. Pull this week's promotions and production awards.", skill: '' },
-  { icon: '📁', name: 'Recruiting Pipeline', desc: 'Steps 4/5, BPM and recruit tracker',     prompt: 'Launch the Recruiting Pipeline Agent for Team RISE. Show Steps 4 and 5 status and BPM follow-ups.', skill: '' },
+  { icon: '📁', name: 'Fast Start Pipeline', desc: 'Steps 4/5, BPM and recruit tracker',     prompt: 'Launch the Recruiting Pipeline Agent for Team RISE. Show Steps 4 and 5 status and BPM follow-ups.', skill: '' },
   { icon: '📱', name: 'Social Media Agent',  desc: 'Instagram, TikTok and content',          prompt: 'Launch the Social Media Agent for Team RISE. Help plan content or write captions.', skill: '' },
   { icon: '👑', name: 'Queen Bee',           desc: 'Master orchestrator for all tasks',      prompt: 'Queen Bee, I need your help. What can you do for Team RISE today?', skill: '', queen: true },
 ]

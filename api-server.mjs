@@ -326,6 +326,67 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  // GET /api/recruit-pipeline — read Fast Start pipeline from Google Sheet
+  if (req.method === 'GET' && req.url?.startsWith('/api/recruit-pipeline')) {
+    try {
+      const urlObj = new URL(req.url, 'http://localhost')
+      const trainerName = urlObj.searchParams.get('name') || ''
+      const result = await new Promise((resolve) => {
+        const args = ['read_fast_start.js']
+        if (trainerName) args.push('--trainer', trainerName)
+        const proc = spawn('node', args, { cwd: SCRAPER_DIR })
+        let out = ''
+        proc.stdout.on('data', d => { out += d })
+        proc.stderr.on('data', d => process.stderr.write(d))
+        proc.on('close', () => {
+          const line = out.split('\n').find(l => l.includes('[FAST_START_RESULT]'))
+          if (line) {
+            try { resolve(JSON.parse(line.replace('[FAST_START_RESULT]', '').trim())) }
+            catch { resolve({ recruits: [] }) }
+          } else {
+            resolve({ recruits: [] })
+          }
+        })
+      })
+      res.writeHead(200, cors)
+      res.end(JSON.stringify(result))
+    } catch (err) {
+      res.writeHead(500, cors)
+      res.end(JSON.stringify({ recruits: [], error: err.message }))
+    }
+    return
+  }
+
+  // POST /api/recruit-step3 — toggle Step 3 Done for a recruit
+  if (req.method === 'POST' && req.url === '/api/recruit-step3') {
+    try {
+      const body = await parseBody(req)
+      const { code, done } = body
+      if (!code) throw new Error('code required')
+      const result = await new Promise((resolve) => {
+        const proc = spawn('node', ['update_step3.js', '--code', code, '--done', String(done)], { cwd: SCRAPER_DIR })
+        let out = ''
+        proc.stdout.on('data', d => { out += d })
+        proc.stderr.on('data', d => process.stderr.write(d))
+        proc.on('close', () => {
+          const line = out.split('\n').find(l => l.includes('[UPDATE_STEP3_RESULT]'))
+          if (line) {
+            try { resolve(JSON.parse(line.replace('[UPDATE_STEP3_RESULT]', '').trim())) }
+            catch { resolve({ ok: false }) }
+          } else {
+            resolve({ ok: false })
+          }
+        })
+      })
+      res.writeHead(200, cors)
+      res.end(JSON.stringify(result))
+    } catch (err) {
+      res.writeHead(500, cors)
+      res.end(JSON.stringify({ ok: false, error: err.message }))
+    }
+    return
+  }
+
   // GET /api/skills — list available skill files
   if (req.method === 'GET' && req.url === '/api/skills') {
     try {
