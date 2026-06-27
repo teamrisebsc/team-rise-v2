@@ -47,6 +47,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/daily-report"
+  to = "/.netlify/functions/daily-report"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
