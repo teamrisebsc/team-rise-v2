@@ -48,7 +48,7 @@
 
 [[redirects]]
   from = "/api/daily-report"
-  to = "/.netlify/functions/daily-report"
+  to = "/.netlify/functions/gx-stats"
   status = 200
 
 [[redirects]]
