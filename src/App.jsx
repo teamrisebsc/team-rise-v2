@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from './AuthContext'
 import ActivityFeed from './ActivityFeed'
 import BookAppointment from './BookAppointment'
@@ -124,6 +124,7 @@ export default function App() {
   const [feedItems, setFeedItems] = useState([])
   const [feedLoading, setFeedLoading] = useState(false)
   const [activeSkill, setActiveSkill] = useState('')
+  const feedRef = useRef(null)
   const [matchupProspect, setMatchupProspect] = useState(null)
   const [view, setView] = useState('dashboard')
   const [gxSyncing, setGxSyncing] = useState(false)
@@ -261,6 +262,7 @@ export default function App() {
   async function runSkill(prompt, name, skillFile, endpoint) {
     setFeedLoading(true)
     setActiveSkill(name)
+    feedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     try {
       const url  = endpoint || '/api/run-skill'
       const body = endpoint
@@ -276,7 +278,7 @@ export default function App() {
       setFeedItems(prev => [{ skill: name, response: data.response || data.error || 'Done.', time, ok: !!data.ok }, ...prev].slice(0, 10))
     } catch(e) {
       const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      setFeedItems(prev => [{ skill: name, response: 'Network error — is the API server running?', time, ok: false }, ...prev].slice(0, 10))
+      setFeedItems(prev => [{ skill: name, response: `Error: ${e.message}`, time, ok: false }, ...prev].slice(0, 10))
     }
     setFeedLoading(false)
     setActiveSkill('')
@@ -536,7 +538,7 @@ export default function App() {
           </section>
 
           {/* Activity Feed */}
-          <section className="feed-section">
+          <section className="feed-section" ref={feedRef}>
             <div className="feed-header">
               <div className="section-label" style={{ marginBottom: 0 }}>Activity Feed</div>
               <button
