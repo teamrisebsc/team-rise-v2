@@ -257,7 +257,12 @@ export default function App() {
   }
 
   const activeAgents       = profile?.custom_agents?.length       ? profile.custom_agents       : AGENTS
-  const activeQuickActions = profile?.custom_quick_actions?.length ? profile.custom_quick_actions : QUICK_ACTIONS
+  const activeQuickActions = profile?.custom_quick_actions?.length
+    ? profile.custom_quick_actions.map(a => {
+        const def = QUICK_ACTIONS.find(q => q.label === a.label)
+        return def ? { ...a, endpoint: a.endpoint ?? def.endpoint } : a
+      })
+    : QUICK_ACTIONS
 
   async function runSkill(prompt, name, skillFile, endpoint) {
     setFeedLoading(true)
