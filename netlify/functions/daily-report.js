@@ -1,5 +1,5 @@
-// netlify/functions/daily-report.js
-// Reads the latest daily report snapshot from Supabase and returns formatted markdown.
+// netlify/functions/daily-report.js — v2
+// Reads the latest daily report snapshot from Supabase and returns branded HTML.
 // Snapshot is pushed by push_daily_snapshot.js after each scraper run.
 
 const CORS = {
