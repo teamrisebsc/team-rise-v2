@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 function renderMarkdown(text) {
   if (!text) return ''
+  if (text.trimStart().startsWith('<')) return text
   let html = text
     // Escape HTML
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

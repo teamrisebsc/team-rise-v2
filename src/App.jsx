@@ -7,7 +7,7 @@ import Confetti from './Confetti'
 import RecruitPipeline from './RecruitPipeline'
 
 const QUICK_ACTIONS = [
-  { icon: '📊', label: 'Daily Report',          prompt: 'Run the daily report for Team Rise.' },
+  { icon: '📊', label: 'Daily Report',          prompt: '', endpoint: '/api/daily-report' },
   { icon: '👤', label: 'Personal Prospects',    prompt: 'Run the Follow-Up Agent for my personal prospect sheet. Check who needs follow-up today.' },
   { icon: '👥', label: 'Team Prospects',        prompt: 'Run the Follow-Up Agent for the team prospect pipeline. Show who needs follow-up across the team.' },
   { icon: '📈', label: 'GX Tracker',            prompt: 'Run the Performance Agent to pull the current GX tracker and show where we stand.' },
@@ -258,18 +258,18 @@ export default function App() {
   const activeAgents       = profile?.custom_agents?.length       ? profile.custom_agents       : AGENTS
   const activeQuickActions = profile?.custom_quick_actions?.length ? profile.custom_quick_actions : QUICK_ACTIONS
 
-  async function runSkill(prompt, name, skillFile) {
+  async function runSkill(prompt, name, skillFile, endpoint) {
     setFeedLoading(true)
     setActiveSkill(name)
     try {
-      const res = await fetch('/api/run-skill', {
+      const url  = endpoint || '/api/run-skill'
+      const body = endpoint
+        ? JSON.stringify({})
+        : JSON.stringify({ prompt, skillFile: skillFile || null, apiKey: profile?.anthropic_api_key })
+      const res = await fetch(url, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          skillFile: skillFile || null,
-          apiKey:    profile?.anthropic_api_key,
-        }),
+        body,
       })
       const data = await res.json()
       const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -475,7 +475,7 @@ export default function App() {
                   style={{ animationDelay: `${0.03 + i * 0.04}s` }}
                   disabled={!configuredReports.has(a.label)}
                   title={!configuredReports.has(a.label) ? 'Enable this report in Configure Report View to unlock' : ''}
-                  onClick={() => runSkill(a.prompt, a.label, a.skill)}
+                  onClick={() => runSkill(a.prompt, a.label, a.skill, a.endpoint)}
                 >
                   <span className="em">{a.icon}</span> {a.label}
                 </button>

@@ -141,6 +141,138 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  // POST /api/daily-report — build report from local cache files (no Supabase needed for local dev)
+  if (req.method === 'POST' && req.url?.startsWith('/api/daily-report')) {
+    try {
+      const MONTHS = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December']
+      const MONTH_ABBRS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+      const now = new Date()
+      const monthPrefix = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`
+      const monthName   = MONTHS[now.getMonth()]
+
+      // Recruits
+      let recruits = null
+      try {
+        const cache = JSON.parse(fs.readFileSync('C:/Users/Mouth/bscpro-scraper/data/daily_report_cache.json','utf-8'))
+        const month = (cache.recruits||[]).filter(r=>(r.start_date||'').startsWith(monthPrefix))
+        const c = { rise:0, ffg:0, ignite:0, praise:0, freedom:0 }
+        for (const r of month) {
+          const tl = (r.team_leader||'').trim()
+          if      (tl==='FFG')     c.ffg++
+          else if (tl==='Ignite')  c.ignite++
+          else if (tl==='Praise')  c.praise++
+          else if (tl==='Freedom') c.freedom++
+          else                      c.rise++
+        }
+        c.total = c.rise + c.ffg + c.ignite + c.praise + c.freedom
+        recruits = c
+      } catch(_) {}
+
+      // Families helped
+      let families_helped = null
+      try {
+        const csv   = fs.readFileSync('C:/Users/Mouth/bscpro-scraper/data/net_points.csv','utf-8')
+        const lines = csv.split('\n').filter(l=>l.trim())
+        if (lines.length >= 2) {
+          const cols = parseCSVLine(lines[1])
+          const pn   = s => parseFloat((s||'0').replace(/,/g,''))||0
+          const gb   = pn(cols[3])
+          const gsb  = pn(cols[5])
+          families_helped = { gross_personal: pn(cols[1]), gross_base: gb, gross_super_base: gsb, super_base_contribution: Math.round(gsb-gb), snapshot_date: cols[0]||'' }
+        }
+      } catch(_) {}
+
+      // GX top 5
+      let gx_top5 = null
+      try {
+        const gxFn   = `C:/Users/Mouth/bscpro-scraper/data/gx_final_${MONTH_ABBRS[now.getMonth()]}${now.getFullYear()}.json`
+        const gxData = JSON.parse(fs.readFileSync(gxFn,'utf-8'))
+        gx_top5 = [...gxData].sort((a,b)=>a.score-b.score).slice(0,5).map(a=>({
+          name: a.name, recruits: a.recruits||0, points: Math.round(a.points||0),
+          needR: a.needR||0, needP: Math.round(a.needP||0), qualified: !!a.qualified,
+        }))
+      } catch(_) {}
+
+      // Licensing
+      let licensing = null
+      try {
+        const lic   = JSON.parse(fs.readFileSync('C:/Users/Mouth/bscpro-scraper/data/licensing_tracker.json','utf-8'))
+        licensing = {
+          total:          lic.length,
+          test_scheduled: lic.filter(r=>r.blocker_category==='Test Scheduled').map(r=>({ name:r.name, state:r.state||'', testDate:r.test_date_fl||r.test_date_ny||'' })),
+          needs_retake:   lic.filter(r=>r.blocker_category==='Needs Retake / Check Status').length,
+        }
+      } catch(_) {}
+
+      const fmt = n => Math.round(n).toLocaleString('en-US')
+      const dateStr = now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})
+      const timeStr = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})
+      const p = []
+
+      p.push(`<div class="r-header"><div class="r-title">📊 Team RISE Daily Briefing</div><div class="r-subtitle">${dateStr} &nbsp;·&nbsp; data as of ${timeStr}</div></div>`)
+
+      // Recruits
+      p.push(`<div class="r-section"><div class="r-section-head">👥 Recruits — ${monthName}</div>`)
+      if (recruits) {
+        p.push(`<div class="r-stat-row">`)
+        p.push(`<div class="r-stat"><div class="r-stat-num">${recruits.rise}</div><div class="r-stat-label">RISE baseshop</div></div>`)
+        if (recruits.ffg    > 0) p.push(`<div class="r-stat"><div class="r-stat-num">${recruits.ffg}</div><div class="r-stat-label">FFG</div></div>`)
+        if (recruits.ignite > 0) p.push(`<div class="r-stat"><div class="r-stat-num">${recruits.ignite}</div><div class="r-stat-label">Ignite</div></div>`)
+        if (recruits.praise > 0) p.push(`<div class="r-stat"><div class="r-stat-num">${recruits.praise}</div><div class="r-stat-label">Praise</div></div>`)
+        if (recruits.freedom > 0) p.push(`<div class="r-stat"><div class="r-stat-num">${recruits.freedom}</div><div class="r-stat-label">Freedom</div></div>`)
+        p.push(`<div class="r-stat r-stat--total"><div class="r-stat-num">${recruits.total}</div><div class="r-stat-label">Total</div></div></div>`)
+      } else { p.push(`<div class="r-unavail">Recruit data unavailable</div>`) }
+      p.push(`</div>`)
+
+      // Families Helped
+      p.push(`<div class="r-section"><div class="r-section-head">👨‍👩‍👧 Families Helped — ${monthName} (pts)</div>`)
+      if (families_helped) {
+        const fh = families_helped
+        p.push(`<div class="r-stat-row">`)
+        p.push(`<div class="r-stat"><div class="r-stat-num">$${fmt(fh.gross_base)}</div><div class="r-stat-label">RISE baseshop</div></div>`)
+        p.push(`<div class="r-stat"><div class="r-stat-num">$${fmt(fh.super_base_contribution)}</div><div class="r-stat-label">Superbase SMDs</div></div>`)
+        p.push(`<div class="r-stat r-stat--total"><div class="r-stat-num">$${fmt(fh.gross_super_base)}</div><div class="r-stat-label">Total hierarchy</div></div></div>`)
+      } else { p.push(`<div class="r-unavail">mywfg data unavailable</div>`) }
+      p.push(`</div>`)
+
+      // GX Top 5
+      p.push(`<div class="r-section"><div class="r-section-head">🏆 GX Top 5 — Closest to Qualified</div>`)
+      if (gx_top5?.length) {
+        p.push(`<div class="r-gx-list">`)
+        gx_top5.forEach((a,i) => {
+          const cls = a.qualified ? ' r-gx-qualified' : ''
+          const needs = !a.qualified ? (() => { const n=[]; if(a.needR>0)n.push(`${a.needR} rec`); if(a.needP>0)n.push(`$${fmt(a.needP)} pts`); return n.join(' + ') })() : ''
+          p.push(`<div class="r-gx-row${cls}"><span class="r-gx-rank">${i+1}</span><span class="r-gx-name">${a.name}</span><span class="r-gx-progress">${a.recruits}/3 rec &nbsp;·&nbsp; ${fmt(a.points)} pts</span>${a.qualified ? `<span class="r-gx-qualified-badge">✅ Qualified!</span>` : `<span class="r-gx-needs">${needs ? 'needs '+needs : ''}</span>`}</div>`)
+        })
+        p.push(`</div>`)
+      } else { p.push(`<div class="r-unavail">GX data unavailable</div>`) }
+      p.push(`</div>`)
+
+      // Licensing
+      p.push(`<div class="r-section">`)
+      if (licensing) {
+        p.push(`<div class="r-section-head">🔓 Licensing — ${licensing.total} in pipeline</div>`)
+        if (licensing.test_scheduled?.length) {
+          p.push(`<div class="r-lic-sub-head">Tests scheduled</div><div class="r-lic-list">`)
+          licensing.test_scheduled.forEach(t => p.push(`<div class="r-lic-row">${t.name}${t.state ? ` (${t.state})` : ''} — ${t.testDate}</div>`))
+          p.push(`</div>`)
+        }
+        if (licensing.needs_retake > 0) p.push(`<div class="r-lic-retake">⚠ ${licensing.needs_retake} agents need retake</div>`)
+      } else {
+        p.push(`<div class="r-section-head">🔓 Licensing</div><div class="r-unavail">Licensing data unavailable</div>`)
+      }
+      p.push(`</div>`)
+
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({ ok: true, html: true, response: p.join('\n') }))
+    } catch(e) {
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({ ok: false, error: `Daily report error: ${e.message}` }))
+    }
+    return
+  }
+
   // GET /api/gx-stats — read cached GX data for the logged-in user
   if (req.method === 'GET' && req.url?.startsWith('/api/gx-stats')) {
     try {
