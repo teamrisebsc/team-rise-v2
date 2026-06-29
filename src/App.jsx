@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from './AuthContext'
-import ActivityFeed from './ActivityFeed'
 import BookAppointment from './BookAppointment'
 import ProfilePage from './ProfilePage'
 import DailyReport from './DailyReport'
@@ -32,81 +31,6 @@ const AGENTS = [
 
 const DEFAULT_GX = { partners: { current: 0, goal: 3 }, points: { current: 0, goal: 15000 }, deadline: 'June 30, 2026' }
 
-const DEFAULT_REPORT_CONFIG = {
-  showTimestamp:    true,
-  showPdf:          true,
-  expandByDefault:  true,
-  density:          'normal',
-}
-
-function ReportConfigPanel({ config, quickActions, agents, enabledReports, onSave, onCancel }) {
-  const [cfg, setCfg] = useState({ ...config })
-  const [enabled, setEnabled] = useState(new Set(enabledReports))
-
-  function toggle(key) {
-    setEnabled(prev => {
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
-      return next
-    })
-  }
-
-  return (
-    <div className="report-config-panel">
-      <div className="rcp-title">Configure Report View</div>
-      <div className="rcp-desc">Enable reports as you build them. Display settings apply to all active reports.</div>
-
-      <div className="rcp-section-head">Display Settings</div>
-      <div className="rcp-options">
-        <label className="rcp-toggle">
-          <input type="checkbox" checked={cfg.showTimestamp} onChange={e => setCfg({ ...cfg, showTimestamp: e.target.checked })} />
-          <span>Show timestamps on reports</span>
-        </label>
-        <label className="rcp-toggle">
-          <input type="checkbox" checked={cfg.showPdf} onChange={e => setCfg({ ...cfg, showPdf: e.target.checked })} />
-          <span>Show PDF export button</span>
-        </label>
-        <label className="rcp-toggle">
-          <input type="checkbox" checked={cfg.expandByDefault} onChange={e => setCfg({ ...cfg, expandByDefault: e.target.checked })} />
-          <span>Expand reports fully by default</span>
-        </label>
-        <div className="rcp-row">
-          <span className="rcp-row-label">Display density</span>
-          <div className="rcp-segmented">
-            <button className={cfg.density === 'normal' ? 'active' : ''} onClick={() => setCfg({ ...cfg, density: 'normal' })}>Normal</button>
-            <button className={cfg.density === 'compact' ? 'active' : ''} onClick={() => setCfg({ ...cfg, density: 'compact' })}>Compact</button>
-          </div>
-        </div>
-      </div>
-
-      <div className="rcp-section-head">Quick Actions</div>
-      <div className="rcp-report-list">
-        {quickActions.map(a => (
-          <label className="rcp-toggle" key={a.label}>
-            <input type="checkbox" checked={enabled.has(a.label)} onChange={() => toggle(a.label)} />
-            <span>{a.icon} {a.label}</span>
-          </label>
-        ))}
-      </div>
-
-      <div className="rcp-section-head">AI Agents</div>
-      <div className="rcp-report-list">
-        {agents.map(a => (
-          <label className="rcp-toggle" key={a.name}>
-            <input type="checkbox" checked={enabled.has(a.name)} onChange={() => toggle(a.name)} />
-            <span>{a.icon} {a.name}</span>
-          </label>
-        ))}
-      </div>
-
-      <div className="rcp-footer">
-        <button className="rcp-cancel" onClick={onCancel}>Cancel</button>
-        <button className="rcp-save" onClick={() => onSave(cfg, enabled)}>Save</button>
-      </div>
-    </div>
-  )
-}
-
 export default function App() {
   const { profile, signOut, updateProfile } = useAuth()
   const [theme, setTheme]       = useState(() => localStorage.getItem('tr-theme-' + (profile?.id || 'default')) || 'dark')
@@ -122,25 +46,12 @@ export default function App() {
   const [confetti, setConfetti]     = useState({ active: false, name: '', type: 'teammate' })
   const [fnaFile, setFnaFile]   = useState(null)
   const [fnaDrag, setFnaDrag]   = useState(false)
-  const [feedItems, setFeedItems] = useState([])
-  const [feedLoading, setFeedLoading] = useState(false)
-  const [activeSkill, setActiveSkill] = useState('')
-  const feedRef = useRef(null)
   const [matchupProspect, setMatchupProspect] = useState(null)
   const [view, setView] = useState('dashboard')
   const [gxSyncing, setGxSyncing] = useState(false)
   const [showLovableBanner, setShowLovableBanner] = useState(true)
   const [lovableKey, setLovableKey] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [configuredReports, setConfiguredReports] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('tr-configured-reports') || '[]')) }
-    catch { return new Set() }
-  })
-  const [reportConfig, setReportConfig] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('tr-report-config') || 'null') || DEFAULT_REPORT_CONFIG }
-    catch { return DEFAULT_REPORT_CONFIG }
-  })
-  const [showReportConfig, setShowReportConfig] = useState(false)
   const [recruitList, setRecruitList]     = useState([])
   const [recruitLoading, setRecruitLoading] = useState(false)
 
@@ -264,39 +175,6 @@ export default function App() {
         return def ? { ...a, endpoint: a.endpoint ?? def.endpoint, view: a.view ?? def.view } : a
       })
     : QUICK_ACTIONS
-
-  async function runSkill(prompt, name, skillFile, endpoint) {
-    setFeedLoading(true)
-    setActiveSkill(name)
-    feedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    try {
-      const url  = endpoint || '/api/run-skill'
-      const body = endpoint
-        ? JSON.stringify({})
-        : JSON.stringify({ prompt, skillFile: skillFile || null, apiKey: profile?.anthropic_api_key })
-      const res = await fetch(url, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      })
-      const data = await res.json()
-      const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      setFeedItems(prev => [{ skill: name, response: data.response || data.error || 'Done.', time, ok: !!data.ok }, ...prev].slice(0, 10))
-    } catch(e) {
-      const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      setFeedItems(prev => [{ skill: name, response: `Error: ${e.message}`, time, ok: false }, ...prev].slice(0, 10))
-    }
-    setFeedLoading(false)
-    setActiveSkill('')
-  }
-
-  function saveReportConfig(cfg, enabledSet) {
-    setReportConfig(cfg)
-    setConfiguredReports(enabledSet)
-    localStorage.setItem('tr-report-config', JSON.stringify(cfg))
-    localStorage.setItem('tr-configured-reports', JSON.stringify([...enabledSet]))
-    setShowReportConfig(false)
-  }
 
   function handleDrop(e) {
     e.preventDefault()
@@ -480,11 +358,11 @@ export default function App() {
               {activeQuickActions.map((a, i) => (
                 <button
                   key={i}
-                  className={`pill${(!a.view && !configuredReports.has(a.label)) ? ' pill--locked' : ''}`}
+                  className={`pill${!a.view ? ' pill--locked' : ''}`}
                   style={{ animationDelay: `${0.03 + i * 0.04}s` }}
-                  disabled={!a.view && !configuredReports.has(a.label)}
-                  title={(!a.view && !configuredReports.has(a.label)) ? 'Enable this report in Configure Report View to unlock' : ''}
-                  onClick={() => a.view ? setView(a.view) : runSkill(a.prompt, a.label, a.skill, a.endpoint)}
+                  disabled={!a.view}
+                  title={!a.view ? 'Coming soon' : ''}
+                  onClick={() => a.view && setView(a.view)}
                 >
                   <span className="em">{a.icon}</span> {a.label}
                 </button>
@@ -498,16 +376,16 @@ export default function App() {
               {activeAgents.map((a, i) => (
                 <div
                   key={i}
-                  className={`card${a.queen ? ' queen' : ''}${!configuredReports.has(a.name) ? ' card--locked' : ''}`}
+                  className={`card${a.queen ? ' queen' : ''}${!a.view ? ' card--locked' : ''}`}
                   style={{ animationDelay: `${0.06 + i * 0.05}s` }}
-                  title={!configuredReports.has(a.name) ? 'Enable this agent in Configure Report View to unlock' : ''}
-                  onClick={() => configuredReports.has(a.name) && runSkill(a.prompt, a.name, a.skill)}
+                  title={!a.view ? 'Coming soon' : ''}
+                  onClick={() => a.view && setView(a.view)}
                 >
                   <div className="card-icon">{a.icon}</div>
                   <div className="card-name">{a.name}</div>
                   <div className="card-desc">{a.desc}</div>
                   <div className="card-foot">
-                    <button className="launch" disabled={!configuredReports.has(a.name)} onClick={e => { e.stopPropagation(); runSkill(a.prompt, a.name, a.skill) }}>Launch</button>
+                    <button className="launch" disabled={!a.view} onClick={e => { e.stopPropagation(); a.view && setView(a.view) }}>Launch</button>
                   </div>
                 </div>
               ))}
@@ -530,7 +408,7 @@ export default function App() {
                   <div className="fna-icon">📑</div>
                   <div className="fna-filename">{fnaFile.name}</div>
                   <div className="fna-actions">
-                    <button className="fna-run-btn" onClick={e => { e.stopPropagation(); runSkill('Run the FNA Report for Team Rise. FNA collection sheet: ' + fnaFile.name, 'FNA Report') }}>Run FNA</button>
+                    <button className="fna-run-btn" onClick={e => { e.stopPropagation() }}>Run FNA</button>
                     <button className="fna-clear-btn" onClick={e => { e.stopPropagation(); setFnaFile(null) }}>Clear</button>
                   </div>
                 </div>
@@ -544,29 +422,6 @@ export default function App() {
             </div>
           </section>
 
-          {/* Activity Feed */}
-          <section className="feed-section" ref={feedRef}>
-            <div className="feed-header">
-              <div className="section-label" style={{ marginBottom: 0 }}>Activity Feed</div>
-              <button
-                className={`feed-config-btn${configuredReports.size > 0 ? ' configured' : ''}`}
-                onClick={() => setShowReportConfig(v => !v)}
-              >
-                {configuredReports.size > 0 ? `⚙ ${configuredReports.size} Active` : '⚙ Configure Reports'}
-              </button>
-            </div>
-            {showReportConfig && (
-              <ReportConfigPanel
-                config={reportConfig}
-                quickActions={activeQuickActions}
-                agents={activeAgents}
-                enabledReports={configuredReports}
-                onSave={saveReportConfig}
-                onCancel={() => setShowReportConfig(false)}
-              />
-            )}
-            <ActivityFeed items={feedItems} loading={feedLoading} activeSkill={activeSkill} reportConfig={reportConfig} />
-          </section>
         </main>
 
         {/* RIGHT — Pipeline + Book a Matchup */}
