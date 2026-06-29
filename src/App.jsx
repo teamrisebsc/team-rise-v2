@@ -261,7 +261,7 @@ export default function App() {
   const activeQuickActions = profile?.custom_quick_actions?.length
     ? profile.custom_quick_actions.map(a => {
         const def = QUICK_ACTIONS.find(q => q.label === a.label)
-        return def ? { ...a, endpoint: a.endpoint ?? def.endpoint } : a
+        return def ? { ...a, endpoint: a.endpoint ?? def.endpoint, view: a.view ?? def.view } : a
       })
     : QUICK_ACTIONS
 
