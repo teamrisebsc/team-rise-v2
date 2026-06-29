@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Team RISE — Daily Report</title>
+  <style>
+    /* ── TOKEN SYSTEM — exact match to dashboard ── */
+    :root {
+      --bg: #040f0f;
+      --bg-card: #071818;
+      --teal: #005f5f;
+      --teal-bright: #008080;
+      --teal-mid: #006a6a;
+      --teal-dim: rgba(0,100,100,0.25);
+      --teal-border: rgba(0,120,120,0.55);
+      --gold: #c9a84c;
+      --green: #22c55e;
+      --green-bright: #4ade80;
+      --amber: #facc15;
+      --red: #f87171;
+      --text: #e8f8f8;
+      --text-muted: #5a8888;
+      --mono: "Courier New", Courier, monospace;
+      --accent: #008B8B;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0,160,160,0.2) 0%, transparent 65%),
+        radial-gradient(circle at 1px 1px, rgba(0,180,180,0.32) 1.2px, transparent 0);
+      background-size: 100% 100%, 26px 26px;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.025) 3px, rgba(0,0,0,0.025) 4px);
+      pointer-events: none; z-index: 9999;
+    }
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
+      pointer-events: none; z-index: 9998;
+    }
+
+    /* ── HEADER ── */
+    .report-header {
+      position: sticky; top: 0; z-index: 200;
+      background: linear-gradient(135deg, rgba(0,80,80,0.7) 0%, rgba(4,15,15,0.97) 60%);
+      backdrop-filter: blur(16px);
+      border-bottom: 2px solid rgba(0,120,120,0.6);
+      box-shadow: 0 0 60px rgba(0,100,100,0.25);
+      padding: 0 28px;
+      height: 72px;
+      display: flex; align-items: center; justify-content: space-between;
+      overflow: hidden;
+    }
+
+    /* Signature: radar sweep — fires once on load */
+    .sweep-line {
+      position: absolute; top: 0; left: -140px; bottom: 0; width: 140px;
+      background: linear-gradient(90deg, transparent, rgba(0,220,220,0.35), rgba(0,200,200,0.1), transparent);
+      animation: sweep 1.5s cubic-bezier(0.25, 0, 0.4, 1) 0.1s forwards;
+      pointer-events: none;
+    }
+    @keyframes sweep { from { left: -140px; } to { left: 110%; } }
+
+    .header-brand { display: flex; flex-direction: column; gap: 2px; position: relative; z-index: 1; }
+    .header-brand-name {
+      font-family: var(--mono); font-size: 18px; font-weight: 700;
+      color: var(--teal-bright); letter-spacing: 0.2em; text-transform: uppercase;
+      text-shadow: 0 0 30px rgba(0,128,128,0.7);
+    }
+    .header-brand-sub {
+      font-family: var(--mono); font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase;
+      color: rgba(0,180,180,0.6);
+    }
+
+    .header-right { display: flex; align-items: center; gap: 14px; position: relative; z-index: 1; }
+
+    .date-chip {
+      font-family: var(--mono); font-size: 12px; color: rgba(0,200,200,0.75);
+      background: var(--teal-dim); border: 1px solid var(--teal-border);
+      border-radius: 20px; padding: 4px 14px; letter-spacing: 0.08em;
+    }
+
+    .print-btn {
+      font-family: var(--mono); font-size: 11px; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--teal-bright); background: var(--teal-dim);
+      border: 1px solid var(--teal-border); border-radius: 6px;
+      padding: 6px 16px; cursor: pointer; transition: all 0.2s;
+    }
+    .print-btn:hover { background: rgba(0,120,120,0.35); }
+
+    /* ── LAYOUT ── */
+    .report-body {
+      max-width: 1200px; margin: 0 auto; padding: 24px 24px 80px;
+      display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start;
+    }
+    .main-col { display: flex; flex-direction: column; }
+    .side-col  { display: flex; flex-direction: column; }
+
+    /* ── SECTION CARD ── */
+    .r-card {
+      background: linear-gradient(180deg, #071515 0%, var(--bg-card) 100%);
+      border: 1px solid var(--teal-border); border-radius: 10px;
+      overflow: hidden; margin-bottom: 16px;
+      animation: fadeUp 0.4s ease both;
+    }
+    .r-card:last-child { margin-bottom: 0; }
+    .main-col .r-card:nth-child(1) { animation-delay: 0.06s; }
+    .main-col .r-card:nth-child(2) { animation-delay: 0.14s; }
+    .main-col .r-card:nth-child(3) { animation-delay: 0.22s; }
+    .side-col .r-card:nth-child(1) { animation-delay: 0.09s; }
+    .side-col .r-card:nth-child(2) { animation-delay: 0.17s; }
+    .side-col .r-card:nth-child(3) { animation-delay: 0.25s; }
+
+    .r-section-head {
+      background: linear-gradient(90deg, #008B8B 0%, rgba(0,139,139,0.32) 100%);
+      color: #fff; font-family: var(--mono); font-size: 10px; font-weight: 700;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      padding: 7px 16px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .r-section-tag {
+      font-size: 9px; font-weight: 600; letter-spacing: 0.06em;
+      background: rgba(255,255,255,0.12); padding: 2px 8px; border-radius: 10px;
+    }
+
+    .r-card-body { padding: 16px 18px; }
+
+    /* ── CONVENTION HERO ── */
+    .hero-row { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 14px; }
+    .hero-num {
+      font-family: var(--mono); font-size: 72px; font-weight: 700; line-height: 1;
+      color: var(--accent); text-shadow: 0 0 48px rgba(0,139,139,0.55);
+      letter-spacing: -0.02em;
+    }
+    .hero-label { padding-bottom: 12px; }
+    .hero-label strong {
+      display: block; font-family: var(--mono); font-size: 15px; font-weight: 700;
+      color: var(--text); letter-spacing: 0.04em; margin-bottom: 3px;
+    }
+    .hero-label span { font-size: 12px; color: var(--text-muted); }
+
+    /* PROGRESS */
+    .progress-wrap { margin-bottom: 16px; }
+    .progress-meta {
+      display: flex; justify-content: space-between; align-items: center;
+      font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-bottom: 6px;
+    }
+    .progress-meta .goal { color: var(--teal-bright); font-weight: 700; }
+    .progress-track { height: 8px; background: rgba(0,100,100,0.2); border-radius: 4px; overflow: hidden; }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--teal), var(--teal-bright));
+      border-radius: 4px; box-shadow: 0 0 8px rgba(0,128,128,0.4);
+      transition: width 1.1s cubic-bezier(0.4, 0, 0.2, 1) 0.35s;
+    }
+    .progress-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
+    .pct-badge {
+      font-family: var(--mono); font-size: 11px; font-weight: 700;
+      padding: 2px 10px; border-radius: 99px;
+      background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.38);
+      color: var(--gold);
+    }
+
+    /* BREAKDOWN GRID */
+    .r-divider { height: 1px; background: rgba(0,120,120,0.2); margin: 12px 0; }
+    .r-sub-label {
+      font-family: var(--mono); font-size: 9px; font-weight: 700;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 8px;
+    }
+    .breakdown-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .b-tile {
+      background: rgba(0,100,100,0.08); border: 1px solid rgba(0,120,120,0.2);
+      border-radius: 7px; padding: 8px 10px;
+    }
+    .b-tile.top { border-color: rgba(0,180,180,0.45); background: rgba(0,139,139,0.14); }
+    .b-tile-name { font-size: 10px; font-weight: 600; color: var(--text-muted); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .b-tile-num { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--teal-bright); line-height: 1; }
+    .b-tile.top .b-tile-num { color: var(--accent); }
+
+    /* ── STAT ROW ── */
+    .r-stat-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .r-stat {
+      background: rgba(0,139,139,0.08); border: 1px solid rgba(0,139,139,0.22);
+      border-radius: 7px; padding: 10px 14px; flex: 1; min-width: 76px;
+    }
+    .r-stat.hi  { background: rgba(0,139,139,0.18); border-color: rgba(0,139,139,0.45); }
+    .r-stat.grn { background: rgba(34,197,94,0.07);  border-color: rgba(34,197,94,0.25); }
+    .r-stat.gld { background: rgba(201,168,76,0.07); border-color: rgba(201,168,76,0.26); }
+    .r-stat-num {
+      font-family: var(--mono); font-size: 22px; font-weight: 700;
+      color: var(--accent); line-height: 1.1;
+    }
+    .r-stat.grn .r-stat-num { color: var(--green-bright); }
+    .r-stat.gld .r-stat-num { color: var(--gold); }
+    .r-stat-label { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+
+    /* ── PRODUCTION LIST ── */
+    .prod-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 0; border-bottom: 1px solid rgba(0,100,100,0.12); font-size: 12px;
+    }
+    .prod-row:last-child { border-bottom: none; }
+    .prod-client { font-weight: 600; color: var(--text); }
+    .prod-meta { display: flex; align-items: center; gap: 8px; }
+    .prod-amt { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--teal-bright); }
+    .p-tag {
+      font-family: var(--mono); font-size: 9px; font-weight: 700;
+      padding: 2px 7px; border-radius: 99px; text-transform: uppercase;
+    }
+    .p-tag.pending  { background: rgba(201,168,76,0.12); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
+    .p-tag.done     { background: rgba(34,197,94,0.1); color: var(--green-bright); border: 1px solid rgba(34,197,94,0.3); }
+    .p-tag.missing  { background: rgba(248,113,113,0.1); color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+
+    /* ── RECRUIT LIST ── */
+    .recruit-list { display: flex; flex-direction: column; gap: 4px; }
+    .recruit-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 10px; background: rgba(0,80,80,0.1); border-radius: 5px;
+      border-left: 2px solid rgba(0,139,139,0.35); font-size: 12px;
+    }
+    .recruit-name { font-weight: 600; color: var(--text); }
+    .recruit-meta { display: flex; align-items: center; gap: 8px; }
+    .r-tag {
+      font-family: var(--mono); font-size: 9px; font-weight: 700;
+      padding: 2px 7px; border-radius: 99px; text-transform: uppercase;
+    }
+    .r-tag.new     { background: rgba(96,165,250,0.12); color: #93c5fd; border: 1px solid rgba(96,165,250,0.3); }
+    .r-tag.pre-lic { background: rgba(201,168,76,0.12); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
+    .r-tag.study   { background: rgba(0,128,128,0.12); color: var(--teal-bright); border: 1px solid rgba(0,128,128,0.3); }
+    .recruit-date { font-family: var(--mono); font-size: 10px; color: var(--text-muted); }
+
+    /* ── GX LIST ── */
+    .gx-list { display: flex; flex-direction: column; gap: 5px; }
+    .gx-row {
+      display: grid; grid-template-columns: 36px 1fr auto;
+      align-items: center; gap: 8px;
+      padding: 7px 10px; border-radius: 6px;
+      background: rgba(0,139,139,0.06); border-left: 3px solid var(--teal-mid);
+      font-size: 12px;
+    }
+    .gx-row.q { border-left-color: var(--green); background: rgba(34,197,94,0.06); }
+    .gx-rank {
+      font-family: var(--mono); font-size: 10px; font-weight: 700;
+      color: var(--text-muted); text-align: center;
+    }
+    .gx-name { font-weight: 600; color: var(--text); }
+    .gx-right { text-align: right; }
+    .gx-status { font-family: var(--mono); font-size: 10px; font-weight: 700; }
+    .gx-status.done  { color: var(--green-bright); }
+    .gx-status.needs { color: var(--gold); }
+    .gx-sub { font-size: 10px; color: var(--text-muted); }
+
+    /* ── LICENSING ── */
+    .lic-list { display: flex; flex-direction: column; gap: 4px; }
+    .lic-row {
+      display: flex; align-items: center; gap: 9px;
+      padding: 7px 10px; border-radius: 6px;
+      background: rgba(0,80,80,0.1); font-size: 12px;
+    }
+    .lic-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .lic-dot.pass    { background: var(--green);  box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+    .lic-dot.testing { background: var(--amber);  box-shadow: 0 0 6px rgba(250,204,21,0.5); }
+    .lic-dot.study   { background: var(--teal-bright); box-shadow: 0 0 6px rgba(0,128,128,0.5); }
+    .lic-name { flex: 1; font-weight: 600; color: var(--text); }
+    .lic-status { font-family: var(--mono); font-size: 10px; font-weight: 700; }
+    .lic-status.pass    { color: var(--green-bright); }
+    .lic-status.testing { color: var(--amber); }
+    .lic-status.study   { color: var(--teal-bright); }
+    .lic-date { font-family: var(--mono); font-size: 10px; color: var(--text-muted); }
+
+    /* ── RECOGNITION ── */
+    .reco-list { display: flex; flex-direction: column; gap: 7px; }
+    .reco-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 9px 10px;
+      background: rgba(201,168,76,0.06); border: 1px solid rgba(201,168,76,0.16);
+      border-radius: 6px;
+    }
+    .reco-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .reco-name { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .reco-desc { font-size: 11px; color: var(--text-muted); line-height: 1.45; }
+
+    /* ── FOOTER ── */
+    .report-footer {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 36px;
+      background: linear-gradient(135deg, rgba(0,60,60,0.9) 0%, rgba(4,15,15,0.97) 100%);
+      border-top: 1px solid rgba(0,120,120,0.3); backdrop-filter: blur(16px);
+      display: flex; align-items: center; padding: 0 28px;
+      font-family: var(--mono); font-size: 10px; color: rgba(0,160,160,0.5);
+      gap: 18px; z-index: 200;
+    }
+    .f-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--teal-bright); box-shadow: 0 0 6px rgba(0,128,128,0.6);
+      animation: blink 2s ease-in-out infinite; flex-shrink: 0;
+    }
+    .f-right { margin-left: auto; color: rgba(0,140,140,0.35); }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .report-body { grid-template-columns: 1fr; }
+      .breakdown-grid { grid-template-columns: repeat(3, 1fr); }
+      .hero-num { font-size: 56px; }
+    }
+    @media (max-width: 600px) {
+      .report-body { padding: 12px 12px 60px; }
+      .report-header { padding: 0 14px; }
+      .breakdown-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero-num { font-size: 44px; }
+      .header-brand-name { font-size: 15px; }
+    }
+
+    /* ── PRINT ── */
+    @media print {
+      body { background: #fff; color: #111; }
+      body::before, body::after { display: none; }
+      .sweep-line, .print-btn, .report-footer { display: none; }
+      .report-header {
+        position: static; background: #fff;
+        border-bottom: 2px solid #008B8B; box-shadow: none; backdrop-filter: none;
+      }
+      .header-brand-name { color: #008B8B; text-shadow: none; }
+      .header-brand-sub  { color: #555; }
+      .date-chip { background: #f0f8f8; border-color: #aad4d4; color: #006060; }
+      .r-card { background: #fff; border: 1px solid #cce0e0; break-inside: avoid; animation: none; }
+      .r-section-head { background: #008B8B !important; }
+      .report-body { padding: 12px; gap: 12px; }
+      .hero-num { color: #008B8B; text-shadow: none; }
+      .r-stat { background: #f6fdfd; border-color: #c0dede; }
+      .r-stat-num { color: #008B8B; }
+      .gx-row { background: #f6fdfd; border-left-color: #008B8B; }
+      .gx-row.q { background: #f0fbf4; border-left-color: #22c55e; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="report-header">
+    <div class="sweep-line"></div>
+    <div class="header-brand">
+      <div class="header-brand-name">TEAM RISE</div>
+      <div class="header-brand-sub">DAILY REPORT</div>
+    </div>
+    <div class="header-right">
+      <div class="date-chip" id="rpt-date">JUNE 29, 2026</div>
+      <button class="print-btn" onclick="window.print()">PRINT</button>
+    </div>
+  </header>
+
+  <main class="report-body">
+
+    <!-- ── LEFT / MAIN COL ── -->
+    <div class="main-col">
+
+      <!-- CONVENTION 2026 -->
+      <div class="r-card">
+        <div class="r-section-head">
+          CONVENTION 2026
+          <span class="r-section-tag">LAS VEGAS · NOV 2026</span>
+        </div>
+        <div class="r-card-body">
+          <div class="hero-row">
+            <div class="hero-num" data-count="128">0</div>
+            <div class="hero-label">
+              <strong>Confirmed Seats</strong>
+              <span>out of 300 goal &nbsp;·&nbsp; 228 still unregistered</span>
+            </div>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-meta">
+              <span>0</span>
+              <span class="goal">Goal: 300</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="conv-bar" style="width: 0%"></div>
+            </div>
+            <div class="progress-foot">
+              <span class="pct-badge">42.7% to goal</span>
+            </div>
+          </div>
+          <div class="r-divider"></div>
+          <div class="r-sub-label">CONFIRMED BY SECTION</div>
+          <div class="breakdown-grid">
+            <div class="b-tile top">
+              <div class="b-tile-name">Olivia</div>
+              <div class="b-tile-num" data-count="20">0</div>
+            </div>
+            <div class="b-tile">
+              <div class="b-tile-name">McGann</div>
+              <div class="b-tile-num" data-count="18">0</div>
+            </div>
+            <div class="b-tile">
+              <div class="b-tile-name">Julie</div>
+              <div class="b-tile-num" data-count="13">0</div>
+            </div>
+            <div class="b-tile">
+              <div class="b-tile-name">Alarcon</div>
+              <div class="b-tile-num" data-count="11">0</div>
+            </div>
+            <div class="b-tile">
+              <div class="b-tile-name">Rhonda</div>
+              <div class="b-tile-num" data-count="10">0</div>
+            </div>
+            <div class="b-tile">
+              <div class="b-tile-name">Corey</div>
+              <div class="b-tile-num" data-count="9">0</div>
+            </div>
+            <div class="b-tile">
+              <div class="b-tile-name">Kander</div>
+              <div class="b-tile-num" data-count="8">0</div>
+            </div>
+            <div class="b-tile">
+              <div class="b-tile-name">Kaili</div>
+              <div class="b-tile-num" data-count="7">0</div>
+            </div>
+            <div class="b-tile">
+              <div class="b-tile-name">Kari</div>
+              <div class="b-tile-num" data-count="6">0</div>
+            </div>
+            <div class="b-tile">
+              <div class="b-tile-name">Cortez</div>
+              <div class="b-tile-num" data-count="5">0</div>
+            </div>
+            <div class="b-tile">
+              <div class="b-tile-name">Odalys</div>
+              <div class="b-tile-num" data-count="4">0</div>
+            </div>
+            <div class="b-tile">
+              <div class="b-tile-name">Cathy L</div>
+              <div class="b-tile-num" data-count="3">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRODUCTION -->
+      <div class="r-card">
+        <div class="r-section-head">
+          PRODUCTION — JUNE 2026
+          <span class="r-section-tag">Q2 CLOSE · 2 DAYS LEFT</span>
+        </div>
+        <div class="r-card-body">
+          <div class="r-stat-row">
+            <div class="r-stat hi">
+              <div class="r-stat-num">$42,750</div>
+              <div class="r-stat-label">Submitted GX</div>
+            </div>
+            <div class="r-stat grn">
+              <div class="r-stat-num" data-count="14">0</div>
+              <div class="r-stat-label">Clients Helped</div>
+            </div>
+            <div class="r-stat gld">
+              <div class="r-stat-num" data-count="5">0</div>
+              <div class="r-stat-label">Pending Req's</div>
+            </div>
+          </div>
+          <div class="r-sub-label">PENDING / RECENT CLIENTS</div>
+          <div>
+            <div class="prod-row">
+              <span class="prod-client">Garcia, Maria</span>
+              <div class="prod-meta">
+                <span class="prod-amt">$4,200</span>
+                <span class="p-tag missing">Missing Req</span>
+              </div>
+            </div>
+            <div class="prod-row">
+              <span class="prod-client">Nguyen, Thanh</span>
+              <div class="prod-meta">
+                <span class="prod-amt">$6,800</span>
+                <span class="p-tag done">Submitted</span>
+              </div>
+            </div>
+            <div class="prod-row">
+              <span class="prod-client">Reyes, Carlos</span>
+              <div class="prod-meta">
+                <span class="prod-amt">$3,500</span>
+                <span class="p-tag pending">Pending Req</span>
+              </div>
+            </div>
+            <div class="prod-row">
+              <span class="prod-client">Kim, Soo-Jin</span>
+              <div class="prod-meta">
+                <span class="prod-amt">$5,100</span>
+                <span class="p-tag done">Submitted</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECRUITING -->
+      <div class="r-card">
+        <div class="r-section-head">
+          RECRUITING
+          <span class="r-section-tag">THIS WEEK</span>
+        </div>
+        <div class="r-card-body">
+          <div class="r-stat-row">
+            <div class="r-stat hi">
+              <div class="r-stat-num" data-count="3">0</div>
+              <div class="r-stat-label">New This Week</div>
+            </div>
+            <div class="r-stat">
+              <div class="r-stat-num" data-count="19">0</div>
+              <div class="r-stat-label">New This Month</div>
+            </div>
+            <div class="r-stat">
+              <div class="r-stat-num" data-count="107">0</div>
+              <div class="r-stat-label">Active Recruits</div>
+            </div>
+          </div>
+          <div class="r-sub-label">NEWEST MEMBERS</div>
+          <div class="recruit-list">
+            <div class="recruit-row">
+              <span class="recruit-name">Sandoval, Elena</span>
+              <div class="recruit-meta">
+                <span class="r-tag new">New</span>
+                <span class="recruit-date">Jun 28</span>
+              </div>
+            </div>
+            <div class="recruit-row">
+              <span class="recruit-name">Wu, David</span>
+              <div class="recruit-meta">
+                <span class="r-tag new">New</span>
+                <span class="recruit-date">Jun 27</span>
+              </div>
+            </div>
+            <div class="recruit-row">
+              <span class="recruit-name">Flores, Ana</span>
+              <div class="recruit-meta">
+                <span class="r-tag pre-lic">Pre-License</span>
+                <span class="recruit-date">Jun 25</span>
+              </div>
+            </div>
+            <div class="recruit-row">
+              <span class="recruit-name">Okafor, Chidi</span>
+              <div class="recruit-meta">
+                <span class="r-tag study">Studying</span>
+                <span class="recruit-date">Jun 22</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main-col -->
+
+    <!-- ── RIGHT / SIDE COL ── -->
+    <div class="side-col">
+
+      <!-- GX TRACKER -->
+      <div class="r-card">
+        <div class="r-section-head">
+          GX TRACKER
+          <span class="r-section-tag">JUNE</span>
+        </div>
+        <div class="r-card-body">
+          <div class="gx-list">
+            <div class="gx-row q">
+              <div class="gx-rank">SMD</div>
+              <div class="gx-name">Olivia</div>
+              <div class="gx-right">
+                <div class="gx-status done">QUALIFIED</div>
+                <div class="gx-sub">$42,750 GX</div>
+              </div>
+            </div>
+            <div class="gx-row q">
+              <div class="gx-rank">MD</div>
+              <div class="gx-name">Kaili K</div>
+              <div class="gx-right">
+                <div class="gx-status done">QUALIFIED</div>
+                <div class="gx-sub">$28,400 GX</div>
+              </div>
+            </div>
+            <div class="gx-row">
+              <div class="gx-rank">MD</div>
+              <div class="gx-name">Edgar A</div>
+              <div class="gx-right">
+                <div class="gx-status needs">NEEDS $4.2K</div>
+                <div class="gx-sub">$20,800 / $25K</div>
+              </div>
+            </div>
+            <div class="gx-row">
+              <div class="gx-rank">SFE</div>
+              <div class="gx-name">Jayson C</div>
+              <div class="gx-right">
+                <div class="gx-status needs">NEEDS $2.8K</div>
+                <div class="gx-sub">$7,200 / $10K</div>
+              </div>
+            </div>
+            <div class="gx-row">
+              <div class="gx-rank">FE</div>
+              <div class="gx-name">Lorena R</div>
+              <div class="gx-right">
+                <div class="gx-status needs">NEEDS $1.5K</div>
+                <div class="gx-sub">$3,500 / $5K</div>
+              </div>
+            </div>
+            <div class="gx-row">
+              <div class="gx-rank">FE</div>
+              <div class="gx-name">Toni P</div>
+              <div class="gx-right">
+                <div class="gx-status needs">NEEDS $2.1K</div>
+                <div class="gx-sub">$2,900 / $5K</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LICENSING -->
+      <div class="r-card">
+        <div class="r-section-head">
+          LICENSING PIPELINE
+          <span class="r-section-tag">107 ACTIVE</span>
+        </div>
+        <div class="r-card-body">
+          <div class="r-stat-row">
+            <div class="r-stat grn">
+              <div class="r-stat-num" data-count="4">0</div>
+              <div class="r-stat-label">Passed / Month</div>
+            </div>
+            <div class="r-stat">
+              <div class="r-stat-num" data-count="8">0</div>
+              <div class="r-stat-label">Testing Soon</div>
+            </div>
+          </div>
+          <div class="r-sub-label">RECENT ACTIVITY</div>
+          <div class="lic-list">
+            <div class="lic-row">
+              <div class="lic-dot pass"></div>
+              <div class="lic-name">Sandoval, M</div>
+              <div class="lic-status pass">PASSED</div>
+              <div class="lic-date">Jun 27</div>
+            </div>
+            <div class="lic-row">
+              <div class="lic-dot testing"></div>
+              <div class="lic-name">Chen, Wendy</div>
+              <div class="lic-status testing">TESTING</div>
+              <div class="lic-date">Jun 30</div>
+            </div>
+            <div class="lic-row">
+              <div class="lic-dot testing"></div>
+              <div class="lic-name">Ramirez, J</div>
+              <div class="lic-status testing">TESTING</div>
+              <div class="lic-date">Jun 30</div>
+            </div>
+            <div class="lic-row">
+              <div class="lic-dot study"></div>
+              <div class="lic-name">Okafor, Chidi</div>
+              <div class="lic-status study">STUDYING</div>
+              <div class="lic-date">~Jul 8</div>
+            </div>
+            <div class="lic-row">
+              <div class="lic-dot study"></div>
+              <div class="lic-name">Flores, Ana</div>
+              <div class="lic-status study">STUDYING</div>
+              <div class="lic-date">~Jul 12</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECOGNITION -->
+      <div class="r-card">
+        <div class="r-section-head">RECOGNITION</div>
+        <div class="r-card-body">
+          <div class="reco-list">
+            <div class="reco-row">
+              <div class="reco-icon">🏆</div>
+              <div>
+                <div class="reco-name">Kaili Kimura</div>
+                <div class="reco-desc">MD Qualification — June 2026. Strong month leading Praise team.</div>
+              </div>
+            </div>
+            <div class="reco-row">
+              <div class="reco-icon">⭐</div>
+              <div>
+                <div class="reco-name">Edgar Alarcon</div>
+                <div class="reco-desc">4 recruits this week. On pace for top recruiter in June.</div>
+              </div>
+            </div>
+            <div class="reco-row">
+              <div class="reco-icon">🎓</div>
+              <div>
+                <div class="reco-name">Maria Sandoval</div>
+                <div class="reco-desc">Passed licensing exam June 27. Ready to start taking apps!</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /side-col -->
+
+  </main>
+
+  <div class="report-footer">
+    <div class="f-dot"></div>
+    <span>TEAM RISE AI SYSTEM</span>
+    <span style="color: rgba(0,140,140,0.3)">|</span>
+    <span id="footer-ts">Generated: Jun 29, 2026</span>
+    <span class="f-right">teamrise-v2.netlify.app</span>
+  </div>
+
+  <script>
+    function countUp(el, target, duration) {
+      const start = performance.now();
+      const tick = (now) => {
+        const t = Math.min((now - start) / duration, 1);
+        const ease = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(ease * target);
+        if (t < 1) requestAnimationFrame(tick);
+        else el.textContent = target;
+      };
+      requestAnimationFrame(tick);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('[data-count]').forEach(el => {
+        const n = parseInt(el.dataset.count, 10);
+        const dur = n > 50 ? 1100 : 800;
+        countUp(el, n, dur);
+      });
+
+      setTimeout(() => {
+        const bar = document.getElementById('conv-bar');
+        if (bar) bar.style.width = '42.7%';
+      }, 350);
+
+      const dateEl = document.getElementById('rpt-date');
+      if (dateEl) {
+        dateEl.textContent = new Date().toLocaleDateString('en-US', {
+          month: 'long', day: 'numeric', year: 'numeric'
+        }).toUpperCase();
+      }
+
+      const tsEl = document.getElementById('footer-ts');
+      if (tsEl) {
+        tsEl.textContent = 'Generated: ' + new Date().toLocaleString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        });
+      }
+    });
+  </script>
+</body>
+</html>

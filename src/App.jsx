@@ -3,11 +3,12 @@ import { useAuth } from './AuthContext'
 import ActivityFeed from './ActivityFeed'
 import BookAppointment from './BookAppointment'
 import ProfilePage from './ProfilePage'
+import DailyReport from './DailyReport'
 import Confetti from './Confetti'
 import RecruitPipeline from './RecruitPipeline'
 
 const QUICK_ACTIONS = [
-  { icon: '📊', label: 'Daily Report',          prompt: '', endpoint: '/api/daily-report' },
+  { icon: '📊', label: 'Daily Report', view: 'daily-report', endpoint: '/api/daily-report' },
   { icon: '👤', label: 'Personal Prospects',    prompt: 'Run the Follow-Up Agent for my personal prospect sheet. Check who needs follow-up today.' },
   { icon: '👥', label: 'Team Prospects',        prompt: 'Run the Follow-Up Agent for the team prospect pipeline. Show who needs follow-up across the team.' },
   { icon: '📈', label: 'GX Tracker',            prompt: 'Run the Performance Agent to pull the current GX tracker and show where we stand.' },
@@ -356,7 +357,7 @@ export default function App() {
 
   return (
     <>
-      <header>
+      <header style={{ display: view === 'daily-report' ? 'none' : undefined }}>
         <div className="brand">
           <div className="brand-name">Team Rise</div>
           <div className="brand-sub">AI Command Center</div>
@@ -399,8 +400,9 @@ export default function App() {
       </header>
 
       {view === 'profile' && <ProfilePage onBack={() => setView('dashboard')} />}
+      {view === 'daily-report' && <DailyReport onBack={() => setView('dashboard')} />}
 
-      <div className="dashboard" style={{ display: view === 'profile' ? 'none' : 'grid' }}>
+      <div className="dashboard" style={{ display: (view === 'profile' || view === 'daily-report') ? 'none' : 'grid' }}>
 
         {/* LEFT — GX Stats + Lovable App */}
         <div className="col-left">
@@ -478,11 +480,11 @@ export default function App() {
               {activeQuickActions.map((a, i) => (
                 <button
                   key={i}
-                  className={`pill${!configuredReports.has(a.label) ? ' pill--locked' : ''}`}
+                  className={`pill${(!a.view && !configuredReports.has(a.label)) ? ' pill--locked' : ''}`}
                   style={{ animationDelay: `${0.03 + i * 0.04}s` }}
-                  disabled={!configuredReports.has(a.label)}
-                  title={!configuredReports.has(a.label) ? 'Enable this report in Configure Report View to unlock' : ''}
-                  onClick={() => runSkill(a.prompt, a.label, a.skill, a.endpoint)}
+                  disabled={!a.view && !configuredReports.has(a.label)}
+                  title={(!a.view && !configuredReports.has(a.label)) ? 'Enable this report in Configure Report View to unlock' : ''}
+                  onClick={() => a.view ? setView(a.view) : runSkill(a.prompt, a.label, a.skill, a.endpoint)}
                 >
                   <span className="em">{a.icon}</span> {a.label}
                 </button>
@@ -615,7 +617,7 @@ export default function App() {
 
       </div>
 
-      {view !== 'profile' && <div className="status-bar" style={{ display: '' }}>
+      {view !== 'profile' && view !== 'daily-report' && <div className="status-bar" style={{ display: '' }}>
         <div className="sb-item"><div className="dot dot-green" /> System Active</div>
         <div className="sb-divider" />
         <div className="sb-item">{clock}</div>
