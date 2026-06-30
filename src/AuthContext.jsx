@@ -40,13 +40,22 @@ export function AuthProvider({ children }) {
   }
 
   async function updateProfile(updates) {
-    if (!user) return { error: 'Not logged in' }
+    if (!user) return { error: { message: 'Not logged in' } }
     const { error } = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', user.id)
-    if (!error) setProfile(prev => ({ ...prev, ...updates }))
-    return { error }
+    if (error) {
+      const msg = error?.message ?? ''
+      if (msg.includes('ISO-8859-1') || msg.includes("'set' on 'Headers'")) {
+        console.error('[updateProfile] Header encoding error — clearing session:', error)
+        await supabase.auth.signOut()
+        return { error: { message: 'Session expired — please sign back in.' } }
+      }
+      return { error }
+    }
+    setProfile(prev => ({ ...prev, ...updates }))
+    return { error: null }
   }
 
   async function signUp(email, password, fullName) {

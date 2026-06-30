@@ -131,8 +131,10 @@ export default function ProfilePage({ onBack }) {
       custom_quick_actions: quickActions.filter(a => a.label?.trim()),
     })
     setSaving(false)
-    if (err) setError(err.message || 'Save failed.')
-    else { setSaved(true); setTimeout(() => setSaved(false), 3000) }
+    if (err) {
+      const msg = typeof err === 'string' ? err : err.message || 'Save failed.'
+      setError(msg)
+    } else { setSaved(true); setTimeout(() => setSaved(false), 3000) }
   }
 
   function updateAgent(i, key, val) {
