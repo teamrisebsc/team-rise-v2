@@ -46,6 +46,19 @@ body[data-theme="light"] .sb-item { color: var(--teal-mid); }
 body[data-theme="light"] .feed-panel { background: #ffffff; }
 body[data-theme="light"] .feed-item { border-bottom-color: rgba(53,111,125,0.14); }
 body[data-theme="light"] .feed-item-body { color: #1a3540; }
+body[data-theme="light"] .fs-sort-btn { background: rgba(53,111,125,0.08); border-color: rgba(53,111,125,0.28); }
+body[data-theme="light"] .fs-sort-btn:hover { background: rgba(53,111,125,0.15); }
+body[data-theme="light"] .fs-sort-label { color: #4a6e78; }
+body[data-theme="light"] .fs-sort-count { color: #2a5f6d; }
+body[data-theme="light"] .fs-sort-btn--blue.active  { background: rgba(59,130,246,0.1);  border-color: rgba(59,130,246,0.45); }
+body[data-theme="light"] .fs-sort-btn--blue.active .fs-sort-count  { color: #2563eb; }
+body[data-theme="light"] .fs-sort-btn--blue.active .fs-sort-label  { color: #3b82f6; }
+body[data-theme="light"] .fs-sort-btn--amber.active { background: rgba(200,120,0,0.08);  border-color: rgba(200,120,0,0.4); }
+body[data-theme="light"] .fs-sort-btn--amber.active .fs-sort-count { color: #b45309; }
+body[data-theme="light"] .fs-sort-btn--amber.active .fs-sort-label { color: #d97706; }
+body[data-theme="light"] .fs-sort-btn--green.active { background: rgba(22,163,74,0.08);  border-color: rgba(22,163,74,0.35); }
+body[data-theme="light"] .fs-sort-btn--green.active .fs-sort-count { color: #16a34a; }
+body[data-theme="light"] .fs-sort-btn--green.active .fs-sort-label { color: #22c55e; }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
