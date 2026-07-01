@@ -6,6 +6,11 @@ const STEPS = [
   { key: 'step5', label: 'FNA Report',        field: 'step5Done', color: 'green' },
 ]
 
+function loadLS(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)) }
+  catch { return fallback }
+}
+
 function StepCheck({ done, onClick }) {
   return (
     <button
@@ -22,9 +27,7 @@ function RecruitRow({ recruit, sortStep, localOverrides, onToggle }) {
   function effective(field) {
     return recruit[field] || !!localOverrides[`${recruit.code}-${field}`]
   }
-
   const highlighted = sortStep && !effective(sortStep.field)
-
   return (
     <div className={`fs-row${highlighted ? ' fs-row--highlight' : ''}`}>
       <div className="fs-row-name">{recruit.name}</div>
@@ -42,12 +45,10 @@ function RecruitRow({ recruit, sortStep, localOverrides, onToggle }) {
 }
 
 export default function RecruitPipeline({ recruits: initialRecruits, loading, onRefresh }) {
-  const [recruits, setRecruits] = useState(initialRecruits || [])
-  const [sortStep, setSortStep] = useState(null)
-  const [localOverrides, setLocalOverrides] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('fs_step_overrides') || '{}') }
-    catch { return {} }
-  })
+  const [recruits, setRecruits]       = useState(initialRecruits || [])
+  const [sortStep, setSortStep]       = useState(null)
+  const [localOverrides, setLocalOverrides] = useState(() => loadLS('fs_step_overrides', {}))
+  const [dismissed, setDismissed]     = useState(() => loadLS('fs_dismissed', {}))
 
   useEffect(() => { setRecruits(initialRecruits || []) }, [initialRecruits])
 
@@ -55,8 +56,14 @@ export default function RecruitPipeline({ recruits: initialRecruits, loading, on
     return recruit[field] || !!localOverrides[`${recruit.code}-${field}`]
   }
 
+  function allDone(recruit) {
+    return STEPS.every(s => effective(recruit, s.field))
+  }
+
+  const visible = recruits.filter(r => !dismissed[r.code])
+
   const counts = STEPS.reduce((acc, s) => {
-    acc[s.key] = recruits.filter(r => !effective(r, s.field)).length
+    acc[s.key] = visible.filter(r => !effective(r, s.field)).length
     return acc
   }, {})
 
@@ -65,20 +72,38 @@ export default function RecruitPipeline({ recruits: initialRecruits, loading, on
   }
 
   const sorted = sortStep
-    ? [...recruits].sort((a, b) => {
+    ? [...visible].sort((a, b) => {
         const aNeed = !effective(a, sortStep.field) ? 0 : 1
         const bNeed = !effective(b, sortStep.field) ? 0 : 1
         return aNeed - bNeed
       })
-    : recruits
+    : visible
 
   function handleToggle(code, field) {
     const key = `${code}-${field}`
+
     setLocalOverrides(prev => {
       const next = { ...prev }
       if (next[key]) delete next[key]
       else next[key] = true
       localStorage.setItem('fs_step_overrides', JSON.stringify(next))
+
+      // Check if all steps are now done for this recruit
+      const recruit = recruits.find(r => r.code === code)
+      if (recruit) {
+        const nowAllDone = STEPS.every(s => {
+          const k = `${code}-${s.field}`
+          return recruit[s.field] || !!(s.field === field ? next[key] : next[k])
+        })
+        if (nowAllDone) {
+          setDismissed(prev2 => {
+            const d = { ...prev2, [code]: true }
+            localStorage.setItem('fs_dismissed', JSON.stringify(d))
+            return d
+          })
+        }
+      }
+
       return next
     })
   }
