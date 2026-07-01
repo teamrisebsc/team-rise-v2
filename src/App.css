@@ -28,7 +28,7 @@ body[data-theme="light"]::before, body[data-theme="light"]::after { display: non
 body[data-theme="light"] header { background: linear-gradient(135deg, rgba(53,111,125,0.14) 0%, rgba(240,248,251,0.98) 60%); border-bottom: 2px solid rgba(53,111,125,0.38); }
 body[data-theme="light"] .brand-name { color: #356f7d; text-shadow: none; }
 body[data-theme="light"] .brand-sub, body[data-theme="light"] .live-date { color: #ffffff; }
-body[data-theme="light"] .gx-panel, body[data-theme="light"] .lovable-panel, body[data-theme="light"] .col-right { background: #ffffff; border-color: rgba(53,111,125,0.2); }
+body[data-theme="light"] .gx-panel, body[data-theme="light"] .lovable-panel, body[data-theme="light"] .col-right, body[data-theme="light"] .rp-panel { background: #ffffff; border-color: rgba(53,111,125,0.2); }
 body[data-theme="light"] .panel-label { color: #356f7d; text-shadow: none; }
 body[data-theme="light"] .section-label { color: #ffffff; text-shadow: none; }
 body[data-theme="light"] .card { background: linear-gradient(135deg, #edf7f7 0%, #ffffff 100%); }
