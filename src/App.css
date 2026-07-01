@@ -379,7 +379,12 @@ header {
 .fs-check.busy { opacity: 0.5; cursor: wait; }
 
 .rp-empty { font-size: 12px; color: var(--text-muted); font-style: italic; padding: 16px 4px; text-align: center; }
-.fs-refresh { margin-top: 10px; width: 100%; padding: 6px; font-size: 11px; font-family: var(--mono); color: var(--text-muted); background: rgba(0,60,60,0.2); border: 1px solid rgba(0,100,100,0.2); border-radius: 6px; cursor: pointer; transition: background 0.15s; }
+.fs-row--dismissed { opacity: 0.45; }
+.fs-restore-btn { font-size: 10px; font-family: var(--mono); font-weight: 700; padding: 3px 8px; border-radius: 5px; border: 1px solid rgba(0,100,100,0.3); background: transparent; color: var(--teal-bright); cursor: pointer; letter-spacing: 0.04em; transition: all 0.15s; flex-shrink: 0; }
+.fs-restore-btn:hover { background: rgba(0,128,128,0.15); border-color: var(--teal-bright); }
+.fs-show-dismissed { margin-top: 8px; width: 100%; padding: 5px; font-size: 10px; font-family: var(--mono); color: var(--text-muted); background: transparent; border: none; cursor: pointer; letter-spacing: 0.06em; transition: color 0.15s; }
+.fs-show-dismissed:hover { color: var(--teal-bright); }
+.fs-refresh { margin-top: 4px; width: 100%; padding: 6px; font-size: 11px; font-family: var(--mono); color: var(--text-muted); background: rgba(0,60,60,0.2); border: 1px solid rgba(0,100,100,0.2); border-radius: 6px; cursor: pointer; transition: background 0.15s; }
 .fs-refresh:hover:not(:disabled) { background: rgba(0,90,90,0.3); color: var(--teal-bright); }
 .fs-refresh:disabled { opacity: 0.4; cursor: default; }
 

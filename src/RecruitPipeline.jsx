@@ -45,10 +45,11 @@ function RecruitRow({ recruit, sortStep, localOverrides, onToggle }) {
 }
 
 export default function RecruitPipeline({ recruits: initialRecruits, loading, onRefresh }) {
-  const [recruits, setRecruits]       = useState(initialRecruits || [])
-  const [sortStep, setSortStep]       = useState(null)
+  const [recruits, setRecruits]             = useState(initialRecruits || [])
+  const [sortStep, setSortStep]             = useState(null)
   const [localOverrides, setLocalOverrides] = useState(() => loadLS('fs_step_overrides', {}))
-  const [dismissed, setDismissed]     = useState(() => loadLS('fs_dismissed', {}))
+  const [dismissed, setDismissed]           = useState(() => loadLS('fs_dismissed', {}))
+  const [showDismissed, setShowDismissed]   = useState(false)
 
   useEffect(() => { setRecruits(initialRecruits || []) }, [initialRecruits])
 
@@ -56,11 +57,8 @@ export default function RecruitPipeline({ recruits: initialRecruits, loading, on
     return recruit[field] || !!localOverrides[`${recruit.code}-${field}`]
   }
 
-  function allDone(recruit) {
-    return STEPS.every(s => effective(recruit, s.field))
-  }
-
-  const visible = recruits.filter(r => !dismissed[r.code])
+  const visible   = recruits.filter(r => !dismissed[r.code])
+  const hidden    = recruits.filter(r =>  dismissed[r.code])
 
   const counts = STEPS.reduce((acc, s) => {
     acc[s.key] = visible.filter(r => !effective(r, s.field)).length
@@ -81,14 +79,12 @@ export default function RecruitPipeline({ recruits: initialRecruits, loading, on
 
   function handleToggle(code, field) {
     const key = `${code}-${field}`
-
     setLocalOverrides(prev => {
       const next = { ...prev }
       if (next[key]) delete next[key]
       else next[key] = true
       localStorage.setItem('fs_step_overrides', JSON.stringify(next))
 
-      // Check if all steps are now done for this recruit
       const recruit = recruits.find(r => r.code === code)
       if (recruit) {
         const nowAllDone = STEPS.every(s => {
@@ -103,7 +99,15 @@ export default function RecruitPipeline({ recruits: initialRecruits, loading, on
           })
         }
       }
+      return next
+    })
+  }
 
+  function handleRestore(code) {
+    setDismissed(prev => {
+      const next = { ...prev }
+      delete next[code]
+      localStorage.setItem('fs_dismissed', JSON.stringify(next))
       return next
     })
   }
@@ -145,7 +149,20 @@ export default function RecruitPipeline({ recruits: initialRecruits, loading, on
             />
           ))
         )}
+
+        {showDismissed && hidden.map(r => (
+          <div key={r.code} className="fs-row fs-row--dismissed">
+            <div className="fs-row-name">{r.name}</div>
+            <button className="fs-restore-btn" onClick={() => handleRestore(r.code)}>Restore</button>
+          </div>
+        ))}
       </div>
+
+      {hidden.length > 0 && (
+        <button className="fs-show-dismissed" onClick={() => setShowDismissed(v => !v)}>
+          {showDismissed ? 'Hide completed' : `${hidden.length} completed — show`}
+        </button>
+      )}
 
       {onRefresh && (
         <button className="fs-refresh" onClick={onRefresh} disabled={loading}>
