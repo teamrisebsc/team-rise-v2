@@ -61,18 +61,25 @@ const handler = async (event) => {
     const phoneIdx = colIdx(['phone', 'cell', 'mobile', 'number'])
     const emailIdx = colIdx(['email', 'e-mail'])
 
+    const firstNameIdx = colIdx(['first name', 'firstname'])
+    const lastNameIdx  = colIdx(['last name', 'lastname'])
+    const apptDateIdx  = colIdx(['appt date', 'appointment date'])
+    const resultIdx    = colIdx(['result'])
+    const notesIdx     = colIdx(['notes'])
+
     const prospects = []
     for (let i = dataStart; i < lines.length && prospects.length < 30; i++) {
       const cols      = parseCSVLine(lines[i])
-      const firstName = cols[0]?.replace(/"/g, '').trim()
+      const c = v => (v || '').replace(/"/g, '').trim()
+      const firstName = c(firstNameIdx >= 0 ? cols[firstNameIdx] : cols[0])
       if (!firstName) continue
-      const lastName = cols[1]?.replace(/"/g, '').trim() || ''
+      const lastName = c(lastNameIdx  >= 0 ? cols[lastNameIdx]  : cols[1])
       const name     = [firstName, lastName].filter(Boolean).join(' ')
-      const last     = cols[4]?.replace(/"/g, '').trim() || 'N/A'
-      const result   = cols[5]?.replace(/"/g, '').trim() || ''
-      const notes    = cols[14]?.replace(/"/g, '').trim() || ''
-      const phone    = phoneIdx >= 0 ? (cols[phoneIdx]?.replace(/"/g, '').trim() || '') : ''
-      const email    = emailIdx >= 0 ? (cols[emailIdx]?.replace(/"/g, '').trim() || '') : ''
+      const last     = c(apptDateIdx  >= 0 ? cols[apptDateIdx]  : cols[4]) || 'N/A'
+      const result   = c(resultIdx    >= 0 ? cols[resultIdx]    : cols[5])
+      const notes    = c(notesIdx     >= 0 ? cols[notesIdx]     : cols[14])
+      const phone    = phoneIdx >= 0 ? c(cols[phoneIdx]) : ''
+      const email    = emailIdx >= 0 ? c(cols[emailIdx]) : ''
       const combined = (result + ' ' + notes).toLowerCase()
 
       let heat = 'warm'
