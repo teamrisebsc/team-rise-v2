@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react'
 
 const STEPS = [
-  { key: 'step3', label: 'Goals & Reachouts', field: 'step3Done', color: 'blue',  api: true  },
-  { key: 'step4', label: 'FNA Collection',    field: 'step4Done', color: 'amber', api: false },
-  { key: 'step5', label: 'FNA Report',        field: 'step5Done', color: 'green', api: false },
+  { key: 'step3', label: 'Goals & Reachouts', field: 'step3Done', color: 'blue'  },
+  { key: 'step4', label: 'FNA Collection',    field: 'step4Done', color: 'amber' },
+  { key: 'step5', label: 'FNA Report',        field: 'step5Done', color: 'green' },
 ]
 
-function StepCheck({ done, loading, onClick }) {
+function StepCheck({ done, onClick }) {
   return (
     <button
-      className={`fs-check toggleable${done ? ' done' : ''}${loading ? ' busy' : ''}`}
+      className={`fs-check toggleable${done ? ' done' : ''}`}
       onClick={onClick}
-      disabled={loading}
       title={done ? 'Mark incomplete' : 'Mark complete'}
     >
       {done ? '✓' : '○'}
@@ -19,25 +18,12 @@ function StepCheck({ done, loading, onClick }) {
   )
 }
 
-function RecruitRow({ recruit, sortStep, localOverrides, onToggleStep3, onToggleLocal }) {
-  const [busy, setBusy] = useState(false)
-
+function RecruitRow({ recruit, sortStep, localOverrides, onToggle }) {
   function effective(field) {
     return recruit[field] || !!localOverrides[`${recruit.code}-${field}`]
   }
 
   const highlighted = sortStep && !effective(sortStep.field)
-
-  async function handleClick(step) {
-    if (step.api) {
-      if (busy) return
-      setBusy(true)
-      try { await onToggleStep3(recruit.code, !recruit.step3Done) }
-      finally { setBusy(false) }
-    } else {
-      onToggleLocal(recruit.code, step.field)
-    }
-  }
 
   return (
     <div className={`fs-row${highlighted ? ' fs-row--highlight' : ''}`}>
@@ -47,8 +33,7 @@ function RecruitRow({ recruit, sortStep, localOverrides, onToggleStep3, onToggle
           <StepCheck
             key={s.key}
             done={effective(s.field)}
-            loading={s.api && busy}
-            onClick={() => handleClick(s)}
+            onClick={() => onToggle(recruit.code, s.field)}
           />
         ))}
       </div>
@@ -87,22 +72,7 @@ export default function RecruitPipeline({ recruits: initialRecruits, loading, on
       })
     : recruits
 
-  async function handleToggleStep3(code, done) {
-    setRecruits(prev => prev.map(r => r.code === code ? { ...r, step3Done: done } : r))
-    try {
-      const res = await fetch('/api/recruit-step3', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ code, done }),
-      })
-      const data = await res.json()
-      if (!data.ok) throw new Error(data.error || 'Failed')
-    } catch {
-      setRecruits(prev => prev.map(r => r.code === code ? { ...r, step3Done: !done } : r))
-    }
-  }
-
-  function handleToggleLocal(code, field) {
+  function handleToggle(code, field) {
     const key = `${code}-${field}`
     setLocalOverrides(prev => {
       const next = { ...prev }
@@ -146,8 +116,7 @@ export default function RecruitPipeline({ recruits: initialRecruits, loading, on
               recruit={r}
               sortStep={sortStep}
               localOverrides={localOverrides}
-              onToggleStep3={handleToggleStep3}
-              onToggleLocal={handleToggleLocal}
+              onToggle={handleToggle}
             />
           ))
         )}
