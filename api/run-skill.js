@@ -11,7 +11,7 @@ const handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: CORS, body: '{"error":"Method not allowed"}' }
 
   try {
-    const { prompt, skillFile, apiKey } = JSON.parse(event.body || '{}')
+    const { prompt, skillFile, apiKey, pdfBase64 } = JSON.parse(event.body || '{}')
     const key = apiKey || process.env.ANTHROPIC_API_KEY
 
     if (!key) {
@@ -42,7 +42,15 @@ const handler = async (event) => {
         model:      'claude-sonnet-4-6',
         max_tokens: 4096,
         system:     systemPrompt,
-        messages:   [{ role: 'user', content: prompt }],
+        messages:   [{
+          role: 'user',
+          content: pdfBase64
+            ? [
+                { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
+                { type: 'text', text: prompt },
+              ]
+            : prompt,
+        }],
       }),
     })
 

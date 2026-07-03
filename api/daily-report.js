@@ -103,7 +103,9 @@ function formatReport(data, updatedAt) {
 
 const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' }
-  if (event.httpMethod !== 'POST')    return { statusCode: 405, headers: CORS, body: '{"error":"Method not allowed"}' }
+  if (event.httpMethod !== 'POST' && event.httpMethod !== 'GET') {
+    return { statusCode: 405, headers: CORS, body: '{"error":"Method not allowed"}' }
+  }
 
   const url = process.env.VITE_SUPABASE_URL
   const key = process.env.VITE_SUPABASE_ANON_KEY
@@ -123,6 +125,10 @@ const handler = async (event) => {
       return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: false, error: 'No daily report data yet. Run `node push_daily_snapshot.js` from bscpro-scraper.' }) }
     }
     const { data, updated_at } = rows[0]
+    // GET returns the raw snapshot for the Daily Report page; POST keeps the legacy formatted-HTML response
+    if (event.httpMethod === 'GET') {
+      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, data, updated_at }) }
+    }
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, html: true, response: formatReport(data, updated_at) }) }
   } catch (e) {
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: false, error: `Daily report error: ${e.message}` }) }

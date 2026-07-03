@@ -18,6 +18,13 @@ try {
   }
 } catch {}
 
+// GX window resets monthly — deadline is always the last day of the current month
+function gxDeadline() {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
 async function pushGxToSupabase(entries) {
   const url = process.env.VITE_SUPABASE_URL
   const key = process.env.VITE_SUPABASE_ANON_KEY
@@ -141,8 +148,9 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
-  // POST /api/daily-report — build report from local cache files (no Supabase needed for local dev)
-  if (req.method === 'POST' && req.url?.startsWith('/api/daily-report')) {
+  // /api/daily-report — build report from local cache files (no Supabase needed for local dev)
+  // POST returns legacy formatted HTML; GET returns the raw data object for the Daily Report page
+  if ((req.method === 'POST' || req.method === 'GET') && req.url?.startsWith('/api/daily-report')) {
     try {
       const MONTHS = ['January','February','March','April','May','June',
                       'July','August','September','October','November','December']
@@ -204,6 +212,16 @@ const server = http.createServer(async (req, res) => {
           needs_retake:   lic.filter(r=>r.blocker_category==='Needs Retake / Check Status').length,
         }
       } catch(_) {}
+
+      if (req.method === 'GET') {
+        res.writeHead(200, cors)
+        res.end(JSON.stringify({
+          ok: true,
+          data: { month: monthPrefix, month_name: monthName, generated_at: now.toISOString(), recruits, families_helped, gx_top5, licensing },
+          updated_at: now.toISOString(),
+        }))
+        return
+      }
 
       const fmt = n => Math.round(n).toLocaleString('en-US')
       const dateStr = now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})
@@ -287,7 +305,7 @@ const server = http.createServer(async (req, res) => {
         points:   { current: Math.round(entry?.points || 0), goal: 15000 },
         name:     entry?.name || name,
         qualified: !!entry?.qualified,
-        deadline: 'June 30, 2026',
+        deadline: gxDeadline(),
         not_found: !entry,
       }))
     } catch(e) {
@@ -330,11 +348,138 @@ const server = http.createServer(async (req, res) => {
         points:   { current: Math.round(entry?.points || 0), goal: 15000 },
         name:     entry?.name || name,
         qualified: !!entry?.qualified,
-        deadline: 'June 30, 2026',
+        deadline: gxDeadline(),
       }))
     } catch(e) {
       res.writeHead(500, cors)
       res.end(JSON.stringify({ ok: false, error: e.message }))
+    }
+    return
+  }
+
+  // GET /api/convention — Convention 2026 confirmed-count snapshot from Supabase
+  if (req.method === 'GET' && req.url?.startsWith('/api/convention')) {
+    try {
+      const url = process.env.VITE_SUPABASE_URL
+      const key = process.env.VITE_SUPABASE_ANON_KEY
+      if (!url || !key) throw new Error('Supabase not configured')
+      const sbRes = await fetch(`${url}/rest/v1/report_snapshots?report_key=eq.convention&select=data,updated_at&limit=1`,
+        { headers: { apikey: key, Authorization: `Bearer ${key}` } })
+      if (!sbRes.ok) throw new Error(`Supabase ${sbRes.status}`)
+      const rows = await sbRes.json()
+      res.writeHead(200, cors)
+      if (!rows?.length) {
+        res.end(JSON.stringify({ ok: false, error: 'No convention snapshot yet. Run node push_convention_snapshot.js from bscpro-scraper.' }))
+      } else {
+        res.end(JSON.stringify({ ok: true, data: rows[0].data, updated_at: rows[0].updated_at }))
+      }
+    } catch(e) {
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({ ok: false, error: e.message }))
+    }
+    return
+  }
+
+  // GET /api/recognition — This Week recognition snapshot from Supabase
+  if (req.method === 'GET' && req.url?.startsWith('/api/recognition')) {
+    try {
+      const url = process.env.VITE_SUPABASE_URL
+      const key = process.env.VITE_SUPABASE_ANON_KEY
+      if (!url || !key) throw new Error('Supabase not configured')
+      const sbRes = await fetch(`${url}/rest/v1/report_snapshots?report_key=eq.recognition&select=data,updated_at&limit=1`,
+        { headers: { apikey: key, Authorization: `Bearer ${key}` } })
+      if (!sbRes.ok) throw new Error(`Supabase ${sbRes.status}`)
+      const rows = await sbRes.json()
+      res.writeHead(200, cors)
+      if (!rows?.length) {
+        res.end(JSON.stringify({ ok: false, error: 'No recognition snapshot yet. Run node push_recognition_snapshot.js from bscpro-scraper.' }))
+      } else {
+        res.end(JSON.stringify({ ok: true, data: rows[0].data, updated_at: rows[0].updated_at }))
+      }
+    } catch(e) {
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({ ok: false, error: e.message }))
+    }
+    return
+  }
+
+  // GET /api/gx-leaderboard — full team GX standings from Supabase gx_cache
+  if (req.method === 'GET' && req.url?.startsWith('/api/gx-leaderboard')) {
+    try {
+      const url = process.env.VITE_SUPABASE_URL
+      const key = process.env.VITE_SUPABASE_ANON_KEY
+      if (!url || !key) throw new Error('Supabase not configured')
+      const sbRes = await fetch(`${url}/rest/v1/gx_cache?select=name,data,updated_at`,
+        { headers: { apikey: key, Authorization: `Bearer ${key}` } })
+      if (!sbRes.ok) throw new Error(`Supabase ${sbRes.status}`)
+      const rows = await sbRes.json()
+      const PARTNER_GOAL = 3, POINTS_GOAL = 15000
+      const agents = rows.map(r => {
+        const d = r.data || {}
+        const partners = d.recruits || 0
+        const points   = Math.round(d.points || 0)
+        const missing  = Math.max(0, PARTNER_GOAL - partners) / PARTNER_GOAL +
+                         Math.max(0, POINTS_GOAL - points) / POINTS_GOAL
+        return {
+          name: (d.name || r.name || '').replace(/\s*\([A-Z0-9]+\)$/, ''),
+          partners, points,
+          qualified: !!d.qualified || (partners >= PARTNER_GOAL && points >= POINTS_GOAL),
+          missing, updatedAt: r.updated_at,
+        }
+      })
+      agents.sort((a, b) => (a.qualified === b.qualified) ? a.missing - b.missing : (a.qualified ? -1 : 1))
+      const updatedAt = agents.reduce((m, a) => (!m || a.updatedAt > m) ? a.updatedAt : m, null)
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({ ok: true, partnerGoal: PARTNER_GOAL, pointsGoal: POINTS_GOAL, updatedAt, agents }))
+    } catch(e) {
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({ ok: false, error: e.message, agents: [] }))
+    }
+    return
+  }
+
+  // GET /api/licensing — licensing pipeline from the BSCpro Sync Sheet "Licensing" tab
+  if (req.method === 'GET' && req.url?.startsWith('/api/licensing')) {
+    try {
+      const SYNC_SHEET_ID = '1F5ntZXHa4eg1dKf0XR_9yClmeoZOpAW8_zm1GeJaEEY'
+      const csvRes = await fetch(`https://docs.google.com/spreadsheets/d/${SYNC_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Licensing`)
+      if (!csvRes.ok) throw new Error(`Licensing sheet returned ${csvRes.status}`)
+      const csv    = await csvRes.text()
+      const lines  = csv.split('\n').filter(l => l.trim())
+      const clean  = v => (v || '').replace(/"/g, '').trim()
+      const header = parseCSVLine(lines[0]).map(h => clean(h).toLowerCase())
+      const col    = kw => header.findIndex(h => h.includes(kw))
+      const IDX = {
+        name: col('name'), state: col('state'), phone: col('phone'), leader: col('team leader'),
+        level: col('level'), preLic: col('pre-license'), testFl: col('test date (fl)'),
+        testNy: col('test date (ny)'), notes: col('notes'), category: col('blocker category'),
+        days: col('days in pipeline'), synced: col('last synced'),
+      }
+      let lastSynced = null
+      const people = []
+      for (const line of lines.slice(1)) {
+        const c    = parseCSVLine(line)
+        const name = clean(c[IDX.name])
+        if (!name) continue
+        if (!lastSynced && IDX.synced >= 0) lastSynced = clean(c[IDX.synced])
+        people.push({
+          name,
+          state:      clean(c[IDX.state]),
+          phone:      clean(c[IDX.phone]),
+          teamLeader: clean(c[IDX.leader]),
+          level:      clean(c[IDX.level]),
+          preLicense: clean(c[IDX.preLic]),
+          testDate:   clean(c[IDX.testFl]) || clean(c[IDX.testNy]),
+          notes:      clean(c[IDX.notes]).replace(/<[^>]*>/g, '').trim(),
+          category:   clean(c[IDX.category]) || 'Uncategorized',
+          days:       parseInt(clean(c[IDX.days]), 10) || 0,
+        })
+      }
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({ ok: true, lastSynced, people }))
+    } catch(e) {
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({ ok: false, error: e.message, people: [] }))
     }
     return
   }
@@ -345,6 +490,7 @@ const server = http.createServer(async (req, res) => {
       const rawId  = urlObj.searchParams.get('sheet_id')
       const sheetId = extractSheetId(rawId)
       const tab    = urlObj.searchParams.get('tab') || 'Sheet1'
+      const limit  = Math.min(parseInt(urlObj.searchParams.get('limit'), 10) || 30, 500)
 
       if (!sheetId) {
         res.writeHead(400, cors)
@@ -379,7 +525,7 @@ const server = http.createServer(async (req, res) => {
       const emailIdx = colIdx(['email', 'e-mail'])
 
       const prospects = []
-      for (let i = dataStart; i < lines.length && prospects.length < 30; i++) {
+      for (let i = dataStart; i < lines.length && prospects.length < limit; i++) {
         const cols      = parseCSVLine(lines[i])
         const firstName = cols[0]?.replace(/"/g, '').trim()
         if (!firstName) continue
@@ -578,7 +724,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/api/run-skill') {
     try {
       const body = await parseBody(req)
-      const { prompt, skillFile, apiKey } = body
+      const { prompt, skillFile, apiKey, pdfBase64 } = body
       const key = apiKey || process.env.ANTHROPIC_API_KEY
       if (!key) {
         res.writeHead(200, cors)
@@ -609,7 +755,15 @@ const server = http.createServer(async (req, res) => {
           model:      'claude-sonnet-4-6',
           max_tokens: 4096,
           system:     systemPrompt,
-          messages:   [{ role: 'user', content: prompt }],
+          messages:   [{
+            role: 'user',
+            content: pdfBase64
+              ? [
+                  { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
+                  { type: 'text', text: prompt },
+                ]
+              : prompt,
+          }],
         }),
       })
 

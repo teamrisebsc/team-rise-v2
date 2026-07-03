@@ -6,7 +6,13 @@ const CORS = {
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY
-const DEADLINE     = 'June 30, 2026'
+
+// GX window resets monthly — deadline is always the last day of the current month
+function gxDeadline() {
+  const now = new Date()
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  return lastDay.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
 
 function findEntry(rows, name) {
   if (!rows?.length) return null
@@ -166,7 +172,7 @@ const handler = async (event) => {
         points:    { current: Math.round(d.points || 0), goal: 15000 },
         name:      d.name || entry.name,
         qualified: !!d.qualified,
-        deadline:  DEADLINE,
+        deadline:  gxDeadline(),
         synced_at: entry.updated_at,
       }),
     }

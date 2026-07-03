@@ -13,6 +13,11 @@ export default defineConfig({
       '/api/skills': 'http://localhost:3001',
       '/api/recruit-pipeline': 'http://localhost:3001',
       '/api/recruit-step3': 'http://localhost:3001',
+      '/api/daily-report': 'http://localhost:3001',
+      '/api/licensing': 'http://localhost:3001',
+      '/api/gx-leaderboard': 'http://localhost:3001',
+      '/api/recognition': 'http://localhost:3001',
+      '/api/convention': 'http://localhost:3001',
     }
   }
 })

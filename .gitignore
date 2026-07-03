@@ -5,3 +5,9 @@ dist
 
 # Local Netlify folder
 .netlify
+
+.vercel
+
+# Local build/debug artifacts
+dist-deploy.zip
+tmp_api_result.json

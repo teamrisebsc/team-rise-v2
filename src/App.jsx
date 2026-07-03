@@ -3,33 +3,40 @@ import { useAuth } from './AuthContext'
 import BookAppointment from './BookAppointment'
 import ProfilePage from './ProfilePage'
 import DailyReport from './DailyReport'
+import LicensingPage from './LicensingPage'
+import GXTrackerPage from './GXTrackerPage'
+import ProspectsPage from './ProspectsPage'
+import RecognitionPage from './RecognitionPage'
+import ActivityFeed from './ActivityFeed'
 import Confetti from './Confetti'
 import RecruitPipeline from './RecruitPipeline'
 
 const QUICK_ACTIONS = [
   { icon: '📊', label: 'Daily Report', view: 'daily-report', endpoint: '/api/daily-report' },
-  { icon: '👤', label: 'Personal Prospects',    prompt: 'Run the Follow-Up Agent for my personal prospect sheet. Check who needs follow-up today.' },
+  { icon: '👤', label: 'Personal Prospects',    view: 'prospects', prompt: 'Run the Follow-Up Agent for my personal prospect sheet. Check who needs follow-up today.' },
   { icon: '👥', label: 'Team Prospects',        prompt: 'Run the Follow-Up Agent for the team prospect pipeline. Show who needs follow-up across the team.' },
-  { icon: '📈', label: 'GX Tracker',            prompt: 'Run the Performance Agent to pull the current GX tracker and show where we stand.' },
+  { icon: '📈', label: 'GX Tracker',            view: 'gx-tracker', prompt: 'Run the Performance Agent to pull the current GX tracker and show where we stand.' },
   { icon: '🏆', label: 'Monthly Contest',       prompt: 'Run the Performance Agent to show current monthly contest standings and progress.' },
-  { icon: '🎉', label: 'Recognition',           prompt: "Run the Recognition Agent to pull this week's recognition milestones and shoutouts." },
+  { icon: '🎉', label: 'Recognition',           view: 'recognition', prompt: "Run the Recognition Agent to pull this week's recognition milestones and shoutouts." },
   { icon: '📐', label: 'Metrics (NPR/PPR/PPL)', prompt: 'Run the Metrics Agent to calculate current NPR, PPR, and PPL for Team Rise.' },
   { icon: '📋', label: 'BPM Follow-Up',         prompt: 'Run the Recruiting Pipeline Agent for BPM follow-up. Show which Captains need to follow up with their BPMs today.' },
   { icon: '⚖️', label: 'Closing Ratio',         prompt: 'Run the Closing Ratio Agent. Show conversion rates from Step 1 through to application submitted.' },
 ]
 
 const AGENTS = [
-  { icon: '🔄', name: 'Follow-Up Agent',    desc: 'Personal and team prospect pipeline',   prompt: 'Launch the Follow-Up Agent for Team Rise. Manage personal and team prospect pipelines and client annual reviews.' },
+  { icon: '🔄', name: 'Follow-Up Agent',    desc: 'Personal and team prospect pipeline',   view: 'prospects', prompt: 'Launch the Follow-Up Agent for Team Rise. Manage personal and team prospect pipelines and client annual reviews.' },
   { icon: '🆕', name: 'Onboarding Agent',    desc: 'New recruit welcome and milestones',     prompt: 'Launch the Recruit Onboarding Agent for Team Rise. Check for new recruits who need welcome emails or follow-up.' },
-  { icon: '📜', name: 'Licensing Agent',     desc: 'Auto messages and test tracking',        prompt: 'Launch the Licensing Agent for Team Rise. Check the pipeline and show upcoming test dates.' },
+  { icon: '📜', name: 'Licensing Agent',     desc: 'Auto messages and test tracking',        view: 'licensing', prompt: 'Launch the Licensing Agent for Team Rise. Check the pipeline and show upcoming test dates.' },
   { icon: '📅', name: 'Event Coordinator',   desc: 'Events, sponsorships and logistics',     prompt: 'Launch the Event Coordinator Agent for Team Rise. Show upcoming events and any logistics tasks.' },
-  { icon: '🏅', name: 'Recognition Agent',   desc: 'Promotions and production awards',       prompt: "Launch the Recognition Agent for Team Rise. Pull this week's promotions and production awards." },
+  { icon: '🏅', name: 'Recognition Agent',   desc: 'Promotions and production awards',       view: 'recognition', prompt: "Launch the Recognition Agent for Team Rise. Pull this week's promotions and production awards." },
   { icon: '📁', name: 'Fast Start Pipeline', desc: 'Steps 4/5, BPM and recruit tracker',     prompt: 'Launch the Recruiting Pipeline Agent for Team Rise. Show Steps 4 and 5 status and BPM follow-ups.' },
   { icon: '📱', name: 'Social Media Agent',  desc: 'Instagram, TikTok and content',          prompt: 'Launch the Social Media Agent for Team Rise. Help plan content or write captions.' },
   { icon: '👑', name: 'Queen Bee',           desc: 'Master orchestrator for all tasks',       prompt: 'Queen Bee, I need your help. What can you do for Team Rise today?', queen: true },
 ]
 
-const DEFAULT_GX = { partners: { current: 0, goal: 3 }, points: { current: 0, goal: 15000 }, deadline: 'June 30, 2026' }
+const monthEnd = () => new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+  .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+const DEFAULT_GX = { partners: { current: 0, goal: 3 }, points: { current: 0, goal: 15000 }, deadline: monthEnd() }
 
 export default function App() {
   const { profile, signOut, updateProfile } = useAuth()
@@ -44,8 +51,10 @@ export default function App() {
   })
   const [graduating, setGraduating] = useState({})
   const [confetti, setConfetti]     = useState({ active: false, name: '', type: 'teammate' })
-  const [fnaFile, setFnaFile]   = useState(null)
-  const [fnaDrag, setFnaDrag]   = useState(false)
+  const [fnaFile, setFnaFile]       = useState(null)
+  const [fnaDrag, setFnaDrag]       = useState(false)
+  const [fnaRunning, setFnaRunning] = useState(false)
+  const [fnaResult, setFnaResult]   = useState(null)
   const [matchupProspect, setMatchupProspect] = useState(null)
   const [view, setView] = useState('dashboard')
   const [gxSyncing, setGxSyncing] = useState(false)
@@ -54,6 +63,7 @@ export default function App() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [recruitList, setRecruitList]     = useState([])
   const [recruitLoading, setRecruitLoading] = useState(false)
+  const [convention, setConvention]       = useState(null)
 
   useEffect(() => {
     if (profile?.id) {
@@ -98,6 +108,13 @@ export default function App() {
   useEffect(() => {
     if (profile?.full_name) fetchGxStats()
   }, [profile?.full_name])
+
+  useEffect(() => {
+    fetch('/api/convention')
+      .then(r => r.json())
+      .then(res => { if (res.ok) setConvention(res.data) })
+      .catch(() => { /* widget simply hides */ })
+  }, [])
 
   async function fetchGxStats() {
     try {
@@ -168,7 +185,12 @@ export default function App() {
     }
   }
 
-  const activeAgents       = profile?.custom_agents?.length       ? profile.custom_agents       : AGENTS
+  const activeAgents = profile?.custom_agents?.length
+    ? profile.custom_agents.map(a => {
+        const def = AGENTS.find(d => d.name === a.name)
+        return def ? { ...a, view: a.view ?? def.view } : a
+      })
+    : AGENTS
   const activeQuickActions = profile?.custom_quick_actions?.length
     ? profile.custom_quick_actions.map(a => {
         const def = QUICK_ACTIONS.find(q => q.label === a.label)
@@ -181,6 +203,35 @@ export default function App() {
     setFnaDrag(false)
     const file = e.dataTransfer.files[0]
     if (file && file.type === 'application/pdf') setFnaFile(file)
+  }
+
+  async function runFna() {
+    if (!fnaFile || fnaRunning) return
+    setFnaRunning(true)
+    setFnaResult(null)
+    const time = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    try {
+      const bytes = new Uint8Array(await fnaFile.arrayBuffer())
+      let binary = ''
+      for (let i = 0; i < bytes.length; i += 0x8000) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000))
+      }
+      const res = await fetch('/api/run-skill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: 'Run the FNA process on the attached FNA collection sheet PDF. Extract the client data and produce the full FNA report.',
+          skillFile: 'run-fna',
+          apiKey: profile?.anthropic_api_key || undefined,
+          pdfBase64: btoa(binary),
+        }),
+      })
+      const data = await res.json()
+      setFnaResult({ skill: 'Run FNA — ' + fnaFile.name, ok: data.ok, response: data.ok ? data.response : (data.error || 'Unknown error'), time: time() })
+    } catch (e) {
+      setFnaResult({ skill: 'Run FNA — ' + fnaFile.name, ok: false, response: e.message, time: time() })
+    }
+    setFnaRunning(false)
   }
 
   const visiblePipeline = pipeline.filter(p => !graduated[p.name])
@@ -233,9 +284,14 @@ export default function App() {
   const firstName = profile?.full_name?.split(' ')[0] || 'there'
   const initials  = profile?.avatar_initials || (profile?.full_name?.split(' ').map(n => n[0]).join('') || '??')
 
+  // Views that take over the whole screen (own header) vs. the profile page (keeps app header)
+  const fullPageViews = ['daily-report', 'licensing', 'gx-tracker', 'prospects', 'recognition']
+  const isFullPage    = fullPageViews.includes(view)
+  const offDashboard  = isFullPage || view === 'profile'
+
   return (
     <>
-      <header style={{ display: view === 'daily-report' ? 'none' : undefined }}>
+      <header style={{ display: isFullPage ? 'none' : undefined }}>
         <div className="brand">
           <div className="brand-name">Team Rise</div>
           <div className="brand-sub">AI Command Center</div>
@@ -279,11 +335,39 @@ export default function App() {
 
       {view === 'profile' && <ProfilePage onBack={() => setView('dashboard')} />}
       {view === 'daily-report' && <DailyReport onBack={() => setView('dashboard')} />}
+      {view === 'licensing' && <LicensingPage onBack={() => setView('dashboard')} />}
+      {view === 'gx-tracker' && <GXTrackerPage onBack={() => setView('dashboard')} />}
+      {view === 'prospects' && <ProspectsPage onBack={() => setView('dashboard')} />}
+      {view === 'recognition' && <RecognitionPage onBack={() => setView('dashboard')} />}
 
-      <div className="dashboard" style={{ display: (view === 'profile' || view === 'daily-report') ? 'none' : 'grid' }}>
+      <div className="dashboard" style={{ display: offDashboard ? 'none' : 'grid' }}>
 
-        {/* LEFT — GX Stats + Lovable App */}
+        {/* LEFT — Convention + GX Stats + Lovable App */}
         <div className="col-left">
+          {convention && (() => {
+            const start = new Date(convention.start_date + 'T00:00:00')
+            const now = new Date(); now.setHours(0, 0, 0, 0)
+            const days = Math.ceil((start - now) / 86400000)
+            const live = days <= 0 && now <= new Date(convention.end_date + 'T23:59:59')
+            return (
+              <aside className="conv-panel">
+                <div className="panel-label">Convention 2026 · Las Vegas</div>
+                <div className="conv-row">
+                  <div className="conv-days">
+                    <div className="conv-days-num">{live ? '🎰' : days}</div>
+                    <div className="conv-days-label">{live ? "It's convention week!" : days === 1 ? 'day to go' : 'days to go'}</div>
+                  </div>
+                  <div className="conv-count">
+                    <div className="conv-count-num">{convention.total}</div>
+                    <div className="conv-count-label">confirmed{convention.goal ? ` of ${convention.goal}` : ''}</div>
+                  </div>
+                </div>
+                <div className="progress-track"><div className="progress-fill" style={{ width: Math.min(100, (convention.total / (convention.goal || 300)) * 100) + '%' }} /></div>
+                <div className="conv-dates">July 6–9, 2026</div>
+              </aside>
+            )
+          })()}
+
           <aside className="gx-panel">
             <div className="panel-label">GX This Month</div>
             <div className="gx-stat">
@@ -408,8 +492,10 @@ export default function App() {
                   <div className="fna-icon">📑</div>
                   <div className="fna-filename">{fnaFile.name}</div>
                   <div className="fna-actions">
-                    <button className="fna-run-btn" onClick={e => { e.stopPropagation() }}>Run FNA</button>
-                    <button className="fna-clear-btn" onClick={e => { e.stopPropagation(); setFnaFile(null) }}>Clear</button>
+                    <button className="fna-run-btn" disabled={fnaRunning} onClick={e => { e.stopPropagation(); runFna() }}>
+                      {fnaRunning ? 'Running…' : 'Run FNA'}
+                    </button>
+                    <button className="fna-clear-btn" onClick={e => { e.stopPropagation(); setFnaFile(null); setFnaResult(null) }}>Clear</button>
                   </div>
                 </div>
               ) : (
@@ -420,6 +506,13 @@ export default function App() {
                 </div>
               )}
             </div>
+            {(fnaRunning || fnaResult) && (
+              <ActivityFeed
+                items={fnaResult ? [fnaResult] : []}
+                loading={fnaRunning}
+                activeSkill="Run FNA"
+              />
+            )}
           </section>
 
         </main>
@@ -438,7 +531,7 @@ export default function App() {
           ) : (
             <div className="pipeline-list">
               {visiblePipeline.map((p, i) => (
-                <div key={p.name} className={'prospect' + (touched[i] ? ' is-touched' : '') + (graduating[p.name] ? ' is-graduating' : '')}>
+                <div key={p.name + '|' + i} className={'prospect' + (touched[i] ? ' is-touched' : '') + (graduating[p.name] ? ' is-graduating' : '')}>
                   <div className="prospect-dot" data-heat={p.heat} />
                   <div className="prospect-info">
                     <div className="prospect-top">
@@ -472,12 +565,12 @@ export default function App() {
 
       </div>
 
-      {view !== 'profile' && view !== 'daily-report' && <div className="status-bar" style={{ display: '' }}>
+      {!offDashboard && <div className="status-bar" style={{ display: '' }}>
         <div className="sb-item"><div className="dot dot-green" /> System Active</div>
         <div className="sb-divider" />
         <div className="sb-item">{clock}</div>
         <div className="sb-divider" />
-        <div className="sb-item"><span className="agents-num">9</span>&nbsp;Agents Ready</div>
+        <div className="sb-item"><span className="agents-num">{activeAgents.length}</span>&nbsp;Agents Ready</div>
         <div className="sb-right sb-item"><div className="dot dot-teal" /> {profile?.full_name || 'Team Rise'}</div>
       </div>}
 

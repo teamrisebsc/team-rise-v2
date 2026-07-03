@@ -30,6 +30,7 @@ const handler = async (event) => {
     const params  = event.queryStringParameters || {}
     const sheetId = extractSheetId(params.sheet_id)
     const tab     = params.tab || 'Sheet1'
+    const limit   = Math.min(parseInt(params.limit, 10) || 30, 500)
 
     if (!sheetId) {
       return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Missing sheet_id' }) }
@@ -68,7 +69,7 @@ const handler = async (event) => {
     const notesIdx     = colIdx(['notes'])
 
     const prospects = []
-    for (let i = dataStart; i < lines.length && prospects.length < 30; i++) {
+    for (let i = dataStart; i < lines.length && prospects.length < limit; i++) {
       const cols      = parseCSVLine(lines[i])
       const c = v => (v || '').replace(/"/g, '').trim()
       const firstName = c(firstNameIdx >= 0 ? cols[firstNameIdx] : cols[0])
