@@ -260,17 +260,26 @@ export default function App() {
   // should be able to override — always take those from the built-in def when
   // one matches, so a stale/blank saved value (e.g. view: '' captured before a
   // page existed) can never re-lock a feature that's since been unlocked.
+  // New defaults added after a user already saved a customized list are
+  // appended too, so shipping a new agent/quick-action doesn't require every
+  // user to re-save their profile before it appears.
   const activeAgents = profile?.custom_agents?.length
-    ? profile.custom_agents.map(a => {
-        const def = AGENTS.find(d => d.name === a.name)
-        return def ? { ...def, ...a, view: def.view } : a
-      })
+    ? [
+        ...profile.custom_agents.map(a => {
+          const def = AGENTS.find(d => d.name === a.name)
+          return def ? { ...def, ...a, view: def.view } : a
+        }),
+        ...AGENTS.filter(d => !profile.custom_agents.some(a => a.name === d.name)),
+      ]
     : AGENTS
   const activeQuickActions = profile?.custom_quick_actions?.length
-    ? profile.custom_quick_actions.map(a => {
-        const def = QUICK_ACTIONS.find(q => q.label === a.label)
-        return def ? { ...def, ...a, endpoint: def.endpoint, view: def.view } : a
-      })
+    ? [
+        ...profile.custom_quick_actions.map(a => {
+          const def = QUICK_ACTIONS.find(q => q.label === a.label)
+          return def ? { ...def, ...a, endpoint: def.endpoint, view: def.view } : a
+        }),
+        ...QUICK_ACTIONS.filter(q => !profile.custom_quick_actions.some(a => a.label === q.label)),
+      ]
     : QUICK_ACTIONS
 
   function handleDrop(e) {
