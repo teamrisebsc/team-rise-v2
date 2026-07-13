@@ -8,6 +8,7 @@ import LicensingPage from './LicensingPage'
 import GXTrackerPage from './GXTrackerPage'
 import ProspectsPage from './ProspectsPage'
 import RecognitionPage from './RecognitionPage'
+import BigEventPage from './BigEventPage'
 import ActivityFeed from './ActivityFeed'
 import FollowUpPage from './FollowUpPage'
 import Confetti from './Confetti'
@@ -20,6 +21,7 @@ const QUICK_ACTIONS = [
   { icon: '📈', label: 'GX Tracker',            view: 'gx-tracker', prompt: 'Run the Performance Agent to pull the current GX tracker and show where we stand.' },
   { icon: '🏆', label: 'Monthly Contest',       prompt: 'Run the Performance Agent to show current monthly contest standings and progress.' },
   { icon: '🎉', label: 'Recognition',           view: 'recognition', prompt: "Run the Recognition Agent to pull this week's recognition milestones and shoutouts." },
+  { icon: '🌡️', label: 'Big Event',             view: 'big-event', prompt: 'Show the Big Event registration thermometer for the next event.' },
   { icon: '📐', label: 'Metrics (NPR/PPR/PPL)', prompt: 'Run the Metrics Agent to calculate current NPR, PPR, and PPL for Team Rise.' },
   { icon: '📋', label: 'BPM Follow-Up',         view: 'follow-up', prompt: 'Run the Recruiting Pipeline Agent for BPM follow-up. Show which Captains need to follow up with their BPMs today.' },
   { icon: '⚖️', label: 'Closing Ratio',         prompt: 'Run the Closing Ratio Agent. Show conversion rates from Step 1 through to application submitted.' },
@@ -413,6 +415,7 @@ export default function App() {
       {view === 'gx-tracker' && <GXTrackerPage onBack={() => setView('dashboard')} theme={theme} setTheme={setTheme} />}
       {view === 'prospects' && <ProspectsPage onBack={() => setView('dashboard')} />}
       {view === 'recognition' && <RecognitionPage onBack={() => setView('dashboard')} />}
+      {view === 'big-event' && <BigEventPage onBack={() => setView('dashboard')} />}
       {view === 'follow-up' && <FollowUpPage onBack={() => setView('dashboard')} />}
 
       <div className="dashboard" style={{ display: offDashboard ? 'none' : 'grid' }}>

@@ -21,6 +21,7 @@ const DEFAULT_QUICK_ACTIONS = [
   { icon: '📈', label: 'GX Tracker',            prompt: 'Run the Performance Agent to pull the current GX tracker and show where we stand.', skill: '' },
   { icon: '🏆', label: 'Monthly Contest',       prompt: 'Run the Performance Agent to show current monthly contest standings and progress.', skill: '' },
   { icon: '🎉', label: 'Recognition',           prompt: "Run the Recognition Agent to pull this week's recognition milestones and shoutouts.", skill: '' },
+  { icon: '🌡️', label: 'Big Event',             prompt: 'Show the Big Event registration thermometer for the next event.', skill: '' },
   { icon: '📐', label: 'Metrics (NPR/PPR/PPL)', prompt: 'Run the Metrics Agent to calculate current NPR, PPR, and PPL for Team RISE.', skill: 'mywfg-metrics' },
   { icon: '📋', label: 'BPM Follow-Up',         prompt: 'Run the Recruiting Pipeline Agent for BPM follow-up. Show which Captains need to follow up with their BPMs today.', skill: '' },
   { icon: '⚖️', label: 'Closing Ratio',         prompt: 'Run the Closing Ratio Agent. Show conversion rates from Step 1 through to application submitted.', skill: '' },
