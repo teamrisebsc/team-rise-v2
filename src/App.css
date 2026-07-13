@@ -770,6 +770,8 @@ body[data-theme="light"] .prof-pass-toggle { background: rgba(53,111,125,0.08); 
   padding: 6px 16px; cursor: pointer; transition: all 0.2s;
 }
 .dr-print-btn:hover { background: rgba(0,120,120,0.35); }
+.dr-print-btn:disabled { opacity: 0.55; cursor: default; }
+.dr-print-btn:disabled:hover { background: var(--teal-dim); }
 
 .dr-page {
   max-width: 1200px; margin: 0 auto; padding: 24px 24px 80px;

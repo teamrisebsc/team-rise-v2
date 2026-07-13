@@ -410,7 +410,7 @@ export default function App() {
       {view === 'profile' && <ProfilePage onBack={() => setView('dashboard')} />}
       {view === 'daily-report' && <DailyReport onBack={() => setView('dashboard')} />}
       {view === 'licensing' && <LicensingPage onBack={() => setView('dashboard')} />}
-      {view === 'gx-tracker' && <GXTrackerPage onBack={() => setView('dashboard')} />}
+      {view === 'gx-tracker' && <GXTrackerPage onBack={() => setView('dashboard')} theme={theme} setTheme={setTheme} />}
       {view === 'prospects' && <ProspectsPage onBack={() => setView('dashboard')} />}
       {view === 'recognition' && <RecognitionPage onBack={() => setView('dashboard')} />}
       {view === 'follow-up' && <FollowUpPage onBack={() => setView('dashboard')} />}

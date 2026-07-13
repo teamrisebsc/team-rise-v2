@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { toPng } from 'html-to-image'
 
 const fmt = n => Math.round(n || 0).toLocaleString('en-US')
 const SCOPES = ['base', 'superbase', 'superteam']
 
-export default function GXTrackerPage({ onBack }) {
-  const [scope, setScope]     = useState(() => new Set(['base']))
-  const [board, setBoard]     = useState(null)
-  const [error, setError]     = useState(null)
-  const [loading, setLoading] = useState(true)
+export default function GXTrackerPage({ onBack, theme, setTheme }) {
+  const [scope, setScope]         = useState(() => new Set(['base']))
+  const [board, setBoard]         = useState(null)
+  const [error, setError]         = useState(null)
+  const [loading, setLoading]     = useState(true)
+  const [capturing, setCapturing] = useState(false)
+  const captureRef = useRef(null)
 
   const monthName = new Date().toLocaleDateString('en-US', { month: 'long' })
   const asOfDate  = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -41,6 +44,27 @@ export default function GXTrackerPage({ onBack }) {
       .finally(() => alive && setLoading(false))
     return () => { alive = false }
   }, [resolvedKey])
+
+  async function handleDownload() {
+    if (!captureRef.current || capturing) return
+    setCapturing(true)
+    try {
+      const dataUrl = await toPng(captureRef.current, {
+        pixelRatio: 3,
+        backgroundColor: getComputedStyle(document.body).backgroundColor,
+        cacheBust: true,
+      })
+      const link = document.createElement('a')
+      const dateStr = new Date().toISOString().slice(0, 10)
+      link.download = `gx-tracker-${resolvedKey}-${dateStr}.png`
+      link.href = dataUrl
+      link.click()
+    } catch (e) {
+      setError('Could not create image: ' + e.message)
+    } finally {
+      setCapturing(false)
+    }
+  }
 
   function toggleScope(s) {
     setScope(prev => {
@@ -81,13 +105,21 @@ export default function GXTrackerPage({ onBack }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative', zIndex: 1 }}>
           <div className="dr-date-chip">{asOfDate.toUpperCase()}</div>
+          {setTheme && (
+            <button className="dr-print-btn" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
+              {theme === 'dark' ? '☀ LIGHT' : '🌙 DARK'}
+            </button>
+          )}
+          <button className="dr-print-btn" onClick={handleDownload} disabled={capturing}>
+            {capturing ? 'SAVING…' : '⬇ DOWNLOAD'}
+          </button>
           <button className="dr-print-btn" onClick={() => window.print()}>PRINT</button>
         </div>
       </header>
 
       {asOf && <div className="dr-freshness">Last GX sync: {asOf} — use Sync GX on the dashboard (local) to refresh</div>}
 
-      <div className="lic-page">
+      <div className="lic-page" ref={captureRef}>
         <div className="gx-hero">
           <h1 className="gx-hero-title">RISE <span className="accent">{heroTitle}</span></h1>
           <div className="gx-hero-sub">GX TRACKER · {monthName.toUpperCase()} {new Date().getFullYear()} · MTD</div>

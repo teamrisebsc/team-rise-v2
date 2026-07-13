@@ -472,14 +472,17 @@ const server = http.createServer(async (req, res) => {
       const scopeSel = (urlObj.searchParams.get('scope') || 'base').split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
       const scopeKey = (scopeSel.includes('base') && scopeSel.includes('superbase')) ? 'hierarchy'
         : scopeSel.includes('superbase') ? 'superbase' : 'base'
-      // Only the latest sync batch — the cache keeps rows from old pushes forever
-      const maxTs = rows.reduce((m, r) => (!m || r.updated_at > m) ? r.updated_at : m, null)
-      const fresh = rows.filter(r => maxTs && (new Date(maxTs) - new Date(r.updated_at)) < 10 * 60 * 1000)
+      // Only the latest sync batch FOR THIS SCOPE — the cache keeps rows from old pushes
+      // forever, and scopes refresh independently (e.g. 'base' gets re-pushed on every
+      // dev-server start), so a global maxTs would stale-out scopes that weren't just
+      // re-synced. Freshness must be evaluated within the scope's own rows.
+      const scoped = rows.filter(r => ((r.data || {}).scope || 'base') === scopeKey)
+      const maxTs = scoped.reduce((m, r) => (!m || r.updated_at > m) ? r.updated_at : m, null)
+      const fresh = scoped.filter(r => maxTs && (new Date(maxTs) - new Date(r.updated_at)) < 10 * 60 * 1000)
       // Merge duplicate name variants ("Janae Quick" vs "Janae Quick (E2E3H)")
       const byName = {}
       for (const r of fresh) {
         const d = r.data || {}
-        if ((d.scope || 'base') !== scopeKey) continue
         const name = (d.name || r.name || '').replace(/^\w+::/, '').replace(/\s*\([A-Z0-9]+\)$/, '').trim()
         if (!name) continue
         const cur = byName[name] || { partners: 0, points: 0, qualified: false, updatedAt: r.updated_at }
