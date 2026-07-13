@@ -370,7 +370,7 @@ export default function App() {
   const initials  = profile?.avatar_initials || (profile?.full_name?.split(' ').map(n => n[0]).join('') || '??')
 
   // Views that take over the whole screen (own header) vs. the profile page (keeps app header)
-  const fullPageViews = ['daily-report', 'licensing', 'gx-tracker', 'prospects', 'recognition', 'follow-up']
+  const fullPageViews = ['daily-report', 'licensing', 'gx-tracker', 'prospects', 'recognition', 'follow-up', 'big-event']
   const isFullPage    = fullPageViews.includes(view)
   const offDashboard  = isFullPage || view === 'profile'
 
