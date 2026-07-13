@@ -6,8 +6,16 @@ import fs from 'fs'
 
 const SCRIPT_DIR    = 'C:/Users/Mouth/bsc-appointment-workflow'
 const SCRAPER_DIR   = 'C:/Users/Mouth/bscpro-scraper'
-const GX_CACHE_FILE = 'C:/Users/Mouth/bscpro-scraper/data/gx_final_jun2026.json'
 const SKILLS_DIR    = 'C:/Users/Mouth/.claude/commands'
+const MONTH_ABBRS   = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+
+// Was hardcoded to gx_final_jun2026.json (a since-abandoned naming convention —
+// scrape_gx_baseshop_jun2026.js never got a July successor). Now derives the
+// current month's canonical base-scope file from scrape_gx_<mon><year>_net.js's
+// own output naming, same convention the scope-aware GX Tracker page uses.
+function gxBaseFile(d = new Date()) {
+  return `C:/Users/Mouth/bscpro-scraper/data/gx_${MONTH_ABBRS[d.getMonth()]}${d.getFullYear()}_net_full_base.json`
+}
 
 // Load .env so VITE_SUPABASE_* are available
 try {
@@ -154,7 +162,6 @@ const server = http.createServer(async (req, res) => {
     try {
       const MONTHS = ['January','February','March','April','May','June',
                       'July','August','September','October','November','December']
-      const MONTH_ABBRS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
       const now = new Date()
       const monthPrefix = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`
       const monthName   = MONTHS[now.getMonth()]
@@ -194,8 +201,7 @@ const server = http.createServer(async (req, res) => {
       // GX top 5
       let gx_top5 = null
       try {
-        const gxFn   = `C:/Users/Mouth/bscpro-scraper/data/gx_final_${MONTH_ABBRS[now.getMonth()]}${now.getFullYear()}.json`
-        const gxData = JSON.parse(fs.readFileSync(gxFn,'utf-8'))
+        const gxData = JSON.parse(fs.readFileSync(gxBaseFile(now),'utf-8'))
         gx_top5 = [...gxData].sort((a,b)=>a.score-b.score).slice(0,5).map(a=>({
           name: a.name, recruits: a.recruits||0, points: Math.round(a.points||0),
           needR: a.needR||0, needP: Math.round(a.needP||0), qualified: !!a.qualified,
@@ -296,7 +302,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const urlObj = new URL(req.url, 'http://localhost')
       const name   = urlObj.searchParams.get('name') || ''
-      const raw    = fs.readFileSync(GX_CACHE_FILE, 'utf-8')
+      const raw    = fs.readFileSync(gxBaseFile(), 'utf-8')
       const data   = JSON.parse(raw)
       const entry  = findEntry(data, name)
       res.writeHead(200, cors)
@@ -328,8 +334,13 @@ const server = http.createServer(async (req, res) => {
         ...(bscproEmail    && { BSC_PRO_EMAIL:    bscproEmail }),
         ...(bscproPassword && { BSC_PRO_PASSWORD: bscproPassword }),
       }
+      const now = new Date()
+      const scriptName = `scrape_gx_${MONTH_ABBRS[now.getMonth()]}${now.getFullYear()}_net.js`
+      if (!fs.existsSync(path.join(SCRAPER_DIR, scriptName))) {
+        throw new Error(`${scriptName} doesn't exist yet — copy last month's scrape_gx_*_net.js and update its dates to create this month's scraper.`)
+      }
       await new Promise((resolve, reject) => {
-        const proc = spawn('node', ['scrape_gx_baseshop_jun2026.js'], {
+        const proc = spawn('node', [scriptName], {
           cwd: SCRAPER_DIR,
           env: scriptEnv,
         })
@@ -337,7 +348,7 @@ const server = http.createServer(async (req, res) => {
         proc.stderr.on('data', d => process.stderr.write(d))
         proc.on('close', code => code === 0 ? resolve() : reject(new Error(`Scraper exited ${code}`)))
       })
-      const raw   = fs.readFileSync(GX_CACHE_FILE, 'utf-8')
+      const raw   = fs.readFileSync(gxBaseFile(now), 'utf-8')
       const data  = JSON.parse(raw)
       await pushGxToSupabase(data)
       const entry = findEntry(data, name)
@@ -353,6 +364,46 @@ const server = http.createServer(async (req, res) => {
     } catch(e) {
       res.writeHead(500, cors)
       res.end(JSON.stringify({ ok: false, error: e.message }))
+    }
+    return
+  }
+
+  // GET /api/followups — BPM + appointment follow-up lists from the local appointments cache
+  if (req.method === 'GET' && req.url?.startsWith('/api/followups')) {
+    try {
+      const raw  = fs.readFileSync('C:/Users/Mouth/bscpro-scraper/data/appointments_cache.json', 'utf-8')
+      const data = JSON.parse(raw)
+      const all = [
+        ...(data.yesterday_all || []),
+        ...(data.last_saturday_all || []),
+        ...(data.today_olivia || []),
+      ]
+      const seen = new Set()
+      const appts = all.filter(a => {
+        const k = `${a.prospect}|${a.date}|${a.time}`
+        if (seen.has(k)) return false
+        seen.add(k)
+        return true
+      })
+      const isBpm = a => /bpm|vgo/i.test(`${a.step || ''} ${a.kind || ''}`)
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({
+        ok: true,
+        scrapedAt: data.scraped_at,
+        dates:     data.dates,
+        bpm: {
+          showed:  appts.filter(a => isBpm(a) && a.showed === true),
+          noShows: appts.filter(a => isBpm(a) && a.showed === false),
+        },
+        apptFollowUp: {
+          noNextBooked: appts.filter(a => !isBpm(a) && a.showed === true  && !a.follow_up_scheduled),
+          noShows:      appts.filter(a => !isBpm(a) && a.showed === false),
+        },
+        updated_at: data.scraped_at,
+      }))
+    } catch(e) {
+      res.writeHead(200, cors)
+      res.end(JSON.stringify({ ok: false, error: 'No appointments cache — run the appointments scraper. (' + e.message + ')' }))
     }
     return
   }
@@ -414,21 +465,39 @@ const server = http.createServer(async (req, res) => {
       if (!sbRes.ok) throw new Error(`Supabase ${sbRes.status}`)
       const rows = await sbRes.json()
       const PARTNER_GOAL = 3, POINTS_GOAL = 15000
-      const agents = rows.map(r => {
+      // scope_filter checkbox state -> which precomputed BSCpro scope dataset to read.
+      // 'base'+'superbase' together resolves to 'hierarchy' — matches BSCpro's own
+      // combined/deduped scope_filter view, not a client-side sum of the two.
+      const urlObj = new URL(req.url, 'http://localhost')
+      const scopeSel = (urlObj.searchParams.get('scope') || 'base').split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+      const scopeKey = (scopeSel.includes('base') && scopeSel.includes('superbase')) ? 'hierarchy'
+        : scopeSel.includes('superbase') ? 'superbase' : 'base'
+      // Only the latest sync batch — the cache keeps rows from old pushes forever
+      const maxTs = rows.reduce((m, r) => (!m || r.updated_at > m) ? r.updated_at : m, null)
+      const fresh = rows.filter(r => maxTs && (new Date(maxTs) - new Date(r.updated_at)) < 10 * 60 * 1000)
+      // Merge duplicate name variants ("Janae Quick" vs "Janae Quick (E2E3H)")
+      const byName = {}
+      for (const r of fresh) {
         const d = r.data || {}
-        const partners = d.recruits || 0
-        const points   = Math.round(d.points || 0)
-        const missing  = Math.max(0, PARTNER_GOAL - partners) / PARTNER_GOAL +
-                         Math.max(0, POINTS_GOAL - points) / POINTS_GOAL
-        return {
-          name: (d.name || r.name || '').replace(/\s*\([A-Z0-9]+\)$/, ''),
-          partners, points,
-          qualified: !!d.qualified || (partners >= PARTNER_GOAL && points >= POINTS_GOAL),
-          missing, updatedAt: r.updated_at,
+        if ((d.scope || 'base') !== scopeKey) continue
+        const name = (d.name || r.name || '').replace(/^\w+::/, '').replace(/\s*\([A-Z0-9]+\)$/, '').trim()
+        if (!name) continue
+        const cur = byName[name] || { partners: 0, points: 0, qualified: false, updatedAt: r.updated_at }
+        byName[name] = {
+          partners:  Math.max(cur.partners, d.recruits || 0),
+          points:    Math.max(cur.points, Math.round(d.points || 0)),
+          qualified: cur.qualified || !!d.qualified,
+          updatedAt: r.updated_at > cur.updatedAt ? r.updated_at : cur.updatedAt,
         }
+      }
+      const agents = Object.entries(byName).map(([name, a]) => {
+        const qualified = a.qualified || (a.partners >= PARTNER_GOAL && a.points >= POINTS_GOAL)
+        const missing = Math.max(0, PARTNER_GOAL - a.partners) / PARTNER_GOAL +
+                        Math.max(0, POINTS_GOAL - a.points) / POINTS_GOAL
+        return { name, partners: a.partners, points: a.points, qualified, missing, updatedAt: a.updatedAt }
       })
       agents.sort((a, b) => (a.qualified === b.qualified) ? a.missing - b.missing : (a.qualified ? -1 : 1))
-      const updatedAt = agents.reduce((m, a) => (!m || a.updatedAt > m) ? a.updatedAt : m, null)
+      const updatedAt = maxTs
       res.writeHead(200, cors)
       res.end(JSON.stringify({ ok: true, partnerGoal: PARTNER_GOAL, pointsGoal: POINTS_GOAL, updatedAt, agents }))
     } catch(e) {
@@ -542,7 +611,10 @@ const server = http.createServer(async (req, res) => {
         if (combined.includes('interested') || combined.includes('considering') || combined.includes('wants to') || combined.includes('in person')) heat = 'hot'
         else if (combined.includes('is a recruit') || combined.includes('recruited') || combined.includes('converted') || combined.includes('iul')) heat = 'cool'
 
-        prospects.push({ name, role: 'Prospect', heat, last: last.split(' ')[0] || last, note: result || notes, phone, email })
+        // Became a teammate — hide from dashboard views, but the sheet row is never touched
+        const joined = /is a recruit|recruited|became a (recruit|teammate)|new teammate|joined the team|is now a recruit|signed up/.test(combined)
+
+        prospects.push({ name, role: 'Prospect', heat, joined, last: last.split(' ')[0] || last, note: result || notes, phone, email })
       }
 
       res.writeHead(200, cors)
@@ -792,7 +864,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(3001, async () => {
   console.log('[API] Appointment server running on http://localhost:3001')
   try {
-    const raw = fs.readFileSync(GX_CACHE_FILE, 'utf-8')
+    const raw = fs.readFileSync(gxBaseFile(), 'utf-8')
     await pushGxToSupabase(JSON.parse(raw))
   } catch {}
 })

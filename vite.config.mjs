@@ -18,6 +18,7 @@ export default defineConfig({
       '/api/gx-leaderboard': 'http://localhost:3001',
       '/api/recognition': 'http://localhost:3001',
       '/api/convention': 'http://localhost:3001',
+      '/api/followups': 'http://localhost:3001',
     }
   }
 })

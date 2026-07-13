@@ -87,7 +87,10 @@ const handler = async (event) => {
       if (combined.includes('interested') || combined.includes('considering') || combined.includes('wants to') || combined.includes('in person')) heat = 'hot'
       else if (combined.includes('is a recruit') || combined.includes('recruited') || combined.includes('converted') || combined.includes('iul')) heat = 'cool'
 
-      prospects.push({ name, role: 'Prospect', heat, last: last.split(' ')[0] || last, note: result || notes, phone, email })
+      // Became a teammate — hide from dashboard views, but the sheet row is never touched
+      const joined = /is a recruit|recruited|became a (recruit|teammate)|new teammate|joined the team|is now a recruit|signed up/.test(combined)
+
+      prospects.push({ name, role: 'Prospect', heat, joined, last: last.split(' ')[0] || last, note: result || notes, phone, email })
     }
 
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ prospects }) }

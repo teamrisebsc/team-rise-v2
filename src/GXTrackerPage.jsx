@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const fmt = n => Math.round(n || 0).toLocaleString('en-US')
+const SCOPES = ['base', 'superbase', 'superteam']
 
 export default function GXTrackerPage({ onBack }) {
+  const [scope, setScope]     = useState(() => new Set(['base']))
   const [board, setBoard]     = useState(null)
   const [error, setError]     = useState(null)
   const [loading, setLoading] = useState(true)
-  const [showAll, setShowAll] = useState(false)
 
-  const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()
   const monthName = new Date().toLocaleDateString('en-US', { month: 'long' })
+  const asOfDate  = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
   const daysLeft = (() => {
     const now = new Date()
@@ -17,9 +18,19 @@ export default function GXTrackerPage({ onBack }) {
     return Math.max(0, Math.ceil((end - now) / 86400000))
   })()
 
+  // 'base'+'superbase' together resolves to the combined/deduped hierarchy view —
+  // matches BSCpro's own scope_filter behavior, not a client-side sum of the two.
+  const resolvedKey = scope.has('base') && scope.has('superbase')
+    ? 'hierarchy'
+    : scope.has('superbase') ? 'superbase' : 'base'
+
+  const heroTitle = { base: 'Baseshop', superbase: 'Superbase', hierarchy: 'Hierarchy' }[resolvedKey]
+
   useEffect(() => {
     let alive = true
-    fetch('/api/gx-leaderboard')
+    setLoading(true)
+    const q = Array.from(scope).join(',') || 'base'
+    fetch(`/api/gx-leaderboard?scope=${encodeURIComponent(q)}`)
       .then(r => r.json())
       .then(res => {
         if (!alive) return
@@ -29,12 +40,28 @@ export default function GXTrackerPage({ onBack }) {
       .catch(e => alive && setError(e.message))
       .finally(() => alive && setLoading(false))
     return () => { alive = false }
-  }, [])
+  }, [resolvedKey])
 
-  const agents    = board?.agents || []
-  const active    = agents.filter(a => a.partners > 0 || a.points > 0)
-  const qualified = agents.filter(a => a.qualified)
-  const shown     = showAll ? agents : active
+  function toggleScope(s) {
+    setScope(prev => {
+      const next = new Set(prev)
+      next.has(s) ? next.delete(s) : next.add(s)
+      if (!next.has('base') && !next.has('superbase')) next.add('base') // never let the board go empty
+      return next
+    })
+  }
+
+  const ranked = useMemo(() => {
+    const agents = board?.agents || []
+    return agents
+      .map(a => ({
+        ...a,
+        rMet: a.partners >= (board.partnerGoal || 3),
+        pMet: a.points >= (board.pointsGoal || 15000),
+      }))
+      .filter(a => a.partners > 0 || a.points > 0)
+  }, [board])
+
   const updatedAt = board?.updatedAt ? new Date(board.updatedAt) : null
   const asOf      = updatedAt
     ? updatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' +
@@ -53,7 +80,7 @@ export default function GXTrackerPage({ onBack }) {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative', zIndex: 1 }}>
-          <div className="dr-date-chip">{today}</div>
+          <div className="dr-date-chip">{asOfDate.toUpperCase()}</div>
           <button className="dr-print-btn" onClick={() => window.print()}>PRINT</button>
         </div>
       </header>
@@ -61,69 +88,86 @@ export default function GXTrackerPage({ onBack }) {
       {asOf && <div className="dr-freshness">Last GX sync: {asOf} — use Sync GX on the dashboard (local) to refresh</div>}
 
       <div className="lic-page">
-        {loading && <div className="dr-card"><div className="dr-card-body dr-loading">Loading standings…</div></div>}
+        <div className="gx-hero">
+          <h1 className="gx-hero-title">RISE <span className="accent">{heroTitle}</span></h1>
+          <div className="gx-hero-sub">GX TRACKER · {monthName.toUpperCase()} {new Date().getFullYear()} · MTD</div>
+          <div className="gx-hero-rule" />
+          <div className="gx-hero-stats">
+            <div>
+              <div className="gx-hero-num">{board?.partnerGoal ?? 3}</div>
+              <div className="gx-hero-label">Business Partners</div>
+            </div>
+            <div>
+              <div className="gx-hero-num">{fmt(board?.pointsGoal ?? 15000)}</div>
+              <div className="gx-hero-label">Personal Points</div>
+            </div>
+            <div>
+              <div className="gx-hero-num">{daysLeft}</div>
+              <div className="gx-hero-label">Days Left</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="gx-scope-bar">
+          <span className="gx-scope-caption">Scope</span>
+          {SCOPES.map(s => (
+            <label key={s} className={'gx-scope-chip' + (scope.has(s) ? ' active' : '')} onClick={(e) => { e.preventDefault(); toggleScope(s) }}>
+              <span className="box" />
+              {s === 'base' ? 'Base' : s === 'superbase' ? 'Super Base' : 'Super Team'}
+            </label>
+          ))}
+          {scope.has('superteam') && (
+            <div className="gx-scope-note">Super Team returns no records for this account (verified 7/13/26) — shown for parity with BSCpro's own selector.</div>
+          )}
+        </div>
+
+        {loading && <div className="dr-card" style={{ marginTop: 18 }}><div className="dr-card-body dr-loading">Loading standings…</div></div>}
         {error && !loading && (
-          <div className="dr-card"><div className="r-section-head">UNAVAILABLE</div><div className="dr-card-body">{error}</div></div>
+          <div className="dr-card" style={{ marginTop: 18 }}><div className="r-section-head">UNAVAILABLE</div><div className="dr-card-body">{error}</div></div>
         )}
 
-        {board && !loading && (
-          <>
-            <div className="lic-summary">
-              <div className="r-stat r-stat--green">
-                <div className="r-stat-num">{qualified.length}</div>
-                <div className="r-stat-label">Qualified</div>
-              </div>
-              <div className="r-stat r-stat--total">
-                <div className="r-stat-num">{active.length}</div>
-                <div className="r-stat-label">On the Board</div>
-              </div>
-              <div className="r-stat r-stat--gold">
-                <div className="r-stat-num">{daysLeft}</div>
-                <div className="r-stat-label">Days Left in {monthName}</div>
-              </div>
-            </div>
-
-            <div className="dr-card">
-              <div className="r-section-head">
-                GX STANDINGS — {monthName.toUpperCase()}
-                <span className="dr-section-tag">{board.partnerGoal} PARTNERS + {fmt(board.pointsGoal)} PTS</span>
-              </div>
-              <div className="dr-card-body">
-                <div className="gxl-list">
-                  {shown.map((a, i) => (
-                    <div key={a.name + '|' + i} className={'gxl-row' + (a.qualified ? ' qualified' : '')}>
-                      <span className="gxl-rank">{i + 1}</span>
-                      <span className="gxl-name">{a.name}</span>
-                      <div className="gxl-bars">
-                        <div className="gxl-bar-group">
-                          <span className="gxl-bar-label">Partners {a.partners}/{board.partnerGoal}</span>
-                          <div className="progress-track"><div className="progress-fill" style={{ width: Math.min(100, (a.partners / board.partnerGoal) * 100) + '%' }} /></div>
-                        </div>
-                        <div className="gxl-bar-group">
-                          <span className="gxl-bar-label">{fmt(a.points)} / {fmt(board.pointsGoal)} pts</span>
-                          <div className="progress-track"><div className="progress-fill gold" style={{ width: Math.min(100, (a.points / board.pointsGoal) * 100) + '%' }} /></div>
-                        </div>
+        {board && !loading && !error && (
+          ranked.length
+            ? (
+              <div className="gx-board">
+                {ranked.map((a, i) => {
+                  const rPct = Math.min(100, (a.partners / (board.partnerGoal || 3)) * 100)
+                  const pPct = Math.min(100, (a.points / (board.pointsGoal || 15000)) * 100)
+                  return (
+                    <div key={a.name + '|' + i} className={'gx-card' + (a.rMet || a.qualified ? ' hi' : '')}>
+                      <div className="gx-card-top">
+                        <span className="gx-card-rank">{i + 1}</span>
+                        <span className="gx-card-name" title={a.name}>{a.name}</span>
+                        {a.qualified
+                          ? <span className="gx-card-badge">Qualified</span>
+                          : (a.rMet ? <span className="gx-card-badge">Partners ✓</span> : null)}
                       </div>
-                      {a.qualified
-                        ? <span className="r-gx-qualified-badge">QUALIFIED</span>
-                        : <span className="gxl-needs">
-                            {[
-                              a.partners < board.partnerGoal ? `${board.partnerGoal - a.partners} partner${board.partnerGoal - a.partners > 1 ? 's' : ''}` : null,
-                              a.points < board.pointsGoal ? `$${fmt(board.pointsGoal - a.points)} pts` : null,
-                            ].filter(Boolean).join(' + ') || ''}
-                          </span>}
+                      <div className="gx-stat-row">
+                        <div className="gx-stat-head">
+                          <span className="gx-stat-label">Partners</span>
+                          <span className="gx-stat-value"><b>{a.partners}</b> / {board.partnerGoal}</span>
+                        </div>
+                        <div className="gx-bar-track"><div className={'gx-bar-fill' + (a.rMet ? ' full' : '')} style={{ width: rPct + '%' }} /></div>
+                        <div className={'gx-stat-need' + (a.rMet ? ' met' : '')}>{a.rMet ? 'goal met!' : `needs ${board.partnerGoal - a.partners}`}</div>
+                      </div>
+                      <div className="gx-stat-row">
+                        <div className="gx-stat-head">
+                          <span className="gx-stat-label">Points</span>
+                          <span className="gx-stat-value"><b>{fmt(a.points)}</b> / {fmt(board.pointsGoal)}</span>
+                        </div>
+                        <div className="gx-bar-track"><div className={'gx-bar-fill' + (a.pMet ? ' full' : '')} style={{ width: pPct + '%' }} /></div>
+                        <div className={'gx-stat-need' + (a.pMet ? ' met' : '')}>{a.pMet ? 'goal met!' : `needs $${fmt(board.pointsGoal - a.points)}`}</div>
+                      </div>
                     </div>
-                  ))}
-                  {!shown.length && <div className="r-unavail">No GX activity yet this month.</div>}
-                </div>
-                {!showAll && agents.length > active.length && (
-                  <button className="gxl-show-all" onClick={() => setShowAll(true)}>
-                    Show all {agents.length} agents
-                  </button>
-                )}
+                  )
+                })}
               </div>
-            </div>
-          </>
+            )
+            : <div className="gx-board-empty">No GX activity in this scope yet this month.</div>
+        )}
+
+        {board && !loading && !error && (
+          <div className="gx-board-foot">RISE · {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · {ranked.length} on the board</div>
         )}
       </div>
 
@@ -131,7 +175,7 @@ export default function GXTrackerPage({ onBack }) {
         <div className="dot dot-green" />
         <span className="sb-item">TEAM RISE AI SYSTEM</span>
         <div className="sb-divider" />
-        <span className="sb-item">GX Tracker &nbsp;·&nbsp; {today}</span>
+        <span className="sb-item">GX Tracker &nbsp;·&nbsp; {asOfDate}</span>
       </div>
     </div>
   )

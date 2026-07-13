@@ -1,11 +1,49 @@
 import fs from 'fs'
+import path from 'path'
 
 const SUPABASE_URL = 'https://sfxxjfnlsotjysphkohq.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmeHhqZm5sc290anlzcGhrb2hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0ODYzMzAsImV4cCI6MjA5NjA2MjMzMH0.UHOdlECk_t-EpKadryXEfLQgURPkVafgxvD6EuGyq7M'
-const GX_FILE     = 'C:/Users/Mouth/bscpro-scraper/data/gx_final_jun2026.json'
+const DATA_DIR      = 'C:/Users/Mouth/bscpro-scraper/data'
 
-const entries = JSON.parse(fs.readFileSync(GX_FILE, 'utf-8'))
-const rows    = entries.map(e => ({ name: e.name, data: e, updated_at: new Date().toISOString() }))
+// Filenames follow scrape_gx_<mon><year>_net.js's own convention
+// (gx_<mon><year>_net_full_<scope>.json) so this doesn't need hand-editing
+// month to month as long as the scraper is rerun first.
+const now      = new Date()
+const monShort = now.toLocaleDateString('en-US', { month: 'short' }).toLowerCase()
+const year     = now.getFullYear()
+
+// 'base' stays unprefixed so it matches the exact rows the old (pre-scope) push
+// used — /api/gx-stats's individual "My Goal" lookup depends on that plain name.
+// 'superbase' and 'hierarchy' get a scope-prefixed name so they don't collide
+// with the base row for agents who show up in more than one scope (Supabase's
+// merge-duplicates upsert conflicts on `name`, so distinct scopes need distinct keys).
+const SCOPES = [
+  { key: 'base',      file: `gx_${monShort}${year}_net_full_base.json`,      prefix: false },
+  { key: 'superbase',  file: `gx_${monShort}${year}_net_full_superbase.json`, prefix: true },
+  { key: 'hierarchy',  file: `gx_${monShort}${year}_net_full_hierarchy.json`, prefix: true },
+]
+
+let rows = []
+for (const s of SCOPES) {
+  const fp = path.join(DATA_DIR, s.file)
+  if (!fs.existsSync(fp)) {
+    console.warn(`Skipping ${s.key}: ${fp} not found — run scrape_gx_${monShort}${year}_net.js first.`)
+    continue
+  }
+  const entries = JSON.parse(fs.readFileSync(fp, 'utf-8'))
+  const scopeRows = entries.map(e => ({
+    name: s.prefix ? `${s.key}::${e.name}` : e.name,
+    data: { ...e, scope: s.key },
+    updated_at: new Date().toISOString(),
+  }))
+  rows = rows.concat(scopeRows)
+  console.log(`${s.key}: ${scopeRows.length} rows`)
+}
+
+if (!rows.length) {
+  console.error('Nothing to push — no scope files found.')
+  process.exit(1)
+}
 
 console.log(`Pushing ${rows.length} GX entries to Supabase...`)
 

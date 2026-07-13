@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { useAuth } from './AuthContext'
 
 const HEATS = [
-  { key: 'all',  label: 'All' },
-  { key: 'hot',  label: 'Hot' },
-  { key: 'warm', label: 'Warm' },
-  { key: 'cool', label: 'Cool' },
+  { key: 'all',    label: 'All' },
+  { key: 'hot',    label: 'Hot' },
+  { key: 'warm',   label: 'Warm' },
+  { key: 'cool',   label: 'Cool' },
+  { key: 'joined', label: 'Joined 🎉' },
 ]
 
 function extractSheetId(input) {
@@ -14,7 +15,7 @@ function extractSheetId(input) {
   return m ? m[1] : input.trim()
 }
 
-export default function ProspectsPage({ onBack }) {
+export default function ProspectsPage({ onBack, embedded = false }) {
   const { profile } = useAuth()
   const [prospects, setProspects] = useState([])
   const [error, setError]         = useState(null)
@@ -50,35 +51,39 @@ export default function ProspectsPage({ onBack }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetId])
 
-  const filtered = prospects
-    .filter(p => heat === 'all' || p.heat === heat)
+  // "Joined" prospects (became recruits per sheet notes) are hidden from every
+  // view except the Joined filter — the Google Sheet itself is never modified
+  const active = prospects.filter(p => !p.joined)
+  const filtered = (heat === 'joined' ? prospects.filter(p => p.joined) : active.filter(p => heat === 'all' || p.heat === heat))
     .filter(p => tabFilter === 'all' || p.tab === tabFilter)
     .filter(p => !search ||
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       (p.note || '').toLowerCase().includes(search.toLowerCase()))
 
   const counts = {
-    hot:  prospects.filter(p => p.heat === 'hot').length,
-    warm: prospects.filter(p => p.heat === 'warm').length,
-    cool: prospects.filter(p => p.heat === 'cool').length,
+    hot:  active.filter(p => p.heat === 'hot').length,
+    warm: active.filter(p => p.heat === 'warm').length,
+    cool: active.filter(p => p.heat === 'cool').length,
   }
 
   return (
     <div>
-      <header className="dr-header">
-        <div className="dr-sweep" />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative', zIndex: 1 }}>
-          <button className="prof-back-btn" onClick={onBack}>← Back</button>
-          <div className="brand">
-            <div className="brand-name">TEAM RISE</div>
-            <div className="brand-sub" style={{ letterSpacing: '0.38em' }}>PROSPECT PIPELINE</div>
+      {!embedded && (
+        <header className="dr-header">
+          <div className="dr-sweep" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative', zIndex: 1 }}>
+            <button className="prof-back-btn" onClick={onBack}>← Back</button>
+            <div className="brand">
+              <div className="brand-name">TEAM RISE</div>
+              <div className="brand-sub" style={{ letterSpacing: '0.38em' }}>PROSPECT PIPELINE</div>
+            </div>
           </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative', zIndex: 1 }}>
-          <div className="dr-date-chip">{today}</div>
-          <button className="dr-print-btn" onClick={() => window.print()}>PRINT</button>
-        </div>
-      </header>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative', zIndex: 1 }}>
+            <div className="dr-date-chip">{today}</div>
+            <button className="dr-print-btn" onClick={() => window.print()}>PRINT</button>
+          </div>
+        </header>
+      )}
 
       <div className="lic-page">
         {loading && <div className="dr-card"><div className="dr-card-body dr-loading">Loading prospects…</div></div>}
@@ -98,7 +103,7 @@ export default function ProspectsPage({ onBack }) {
                 <div className="r-stat-label">Warm</div>
               </div>
               <div className="r-stat r-stat--total">
-                <div className="r-stat-num">{prospects.length}</div>
+                <div className="r-stat-num">{active.length}</div>
                 <div className="r-stat-label">Total Prospects</div>
               </div>
             </div>
@@ -155,12 +160,14 @@ export default function ProspectsPage({ onBack }) {
         )}
       </div>
 
-      <div className="status-bar">
-        <div className="dot dot-green" />
-        <span className="sb-item">TEAM RISE AI SYSTEM</span>
-        <div className="sb-divider" />
-        <span className="sb-item">Prospect Pipeline &nbsp;·&nbsp; {today}</span>
-      </div>
+      {!embedded && (
+        <div className="status-bar">
+          <div className="dot dot-green" />
+          <span className="sb-item">TEAM RISE AI SYSTEM</span>
+          <div className="sb-divider" />
+          <span className="sb-item">Prospect Pipeline &nbsp;·&nbsp; {today}</span>
+        </div>
+      )}
     </div>
   )
 }

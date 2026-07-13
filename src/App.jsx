@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from './AuthContext'
+import { supabase } from './supabaseClient'
 import BookAppointment from './BookAppointment'
 import ProfilePage from './ProfilePage'
 import DailyReport from './DailyReport'
@@ -8,6 +9,7 @@ import GXTrackerPage from './GXTrackerPage'
 import ProspectsPage from './ProspectsPage'
 import RecognitionPage from './RecognitionPage'
 import ActivityFeed from './ActivityFeed'
+import FollowUpPage from './FollowUpPage'
 import Confetti from './Confetti'
 import RecruitPipeline from './RecruitPipeline'
 
@@ -19,12 +21,12 @@ const QUICK_ACTIONS = [
   { icon: '🏆', label: 'Monthly Contest',       prompt: 'Run the Performance Agent to show current monthly contest standings and progress.' },
   { icon: '🎉', label: 'Recognition',           view: 'recognition', prompt: "Run the Recognition Agent to pull this week's recognition milestones and shoutouts." },
   { icon: '📐', label: 'Metrics (NPR/PPR/PPL)', prompt: 'Run the Metrics Agent to calculate current NPR, PPR, and PPL for Team Rise.' },
-  { icon: '📋', label: 'BPM Follow-Up',         prompt: 'Run the Recruiting Pipeline Agent for BPM follow-up. Show which Captains need to follow up with their BPMs today.' },
+  { icon: '📋', label: 'BPM Follow-Up',         view: 'follow-up', prompt: 'Run the Recruiting Pipeline Agent for BPM follow-up. Show which Captains need to follow up with their BPMs today.' },
   { icon: '⚖️', label: 'Closing Ratio',         prompt: 'Run the Closing Ratio Agent. Show conversion rates from Step 1 through to application submitted.' },
 ]
 
 const AGENTS = [
-  { icon: '🔄', name: 'Follow-Up Agent',    desc: 'Personal and team prospect pipeline',   view: 'prospects', prompt: 'Launch the Follow-Up Agent for Team Rise. Manage personal and team prospect pipelines and client annual reviews.' },
+  { icon: '🔄', name: 'Follow-Up Agent',    desc: 'Prospects, BPM, Fast Start and appts',  view: 'follow-up', prompt: 'Launch the Follow-Up Agent for Team Rise. Manage personal and team prospect pipelines and client annual reviews.' },
   { icon: '🆕', name: 'Onboarding Agent',    desc: 'New recruit welcome and milestones',     prompt: 'Launch the Recruit Onboarding Agent for Team Rise. Check for new recruits who need welcome emails or follow-up.' },
   { icon: '📜', name: 'Licensing Agent',     desc: 'Auto messages and test tracking',        view: 'licensing', prompt: 'Launch the Licensing Agent for Team Rise. Check the pipeline and show upcoming test dates.' },
   { icon: '📅', name: 'Event Coordinator',   desc: 'Events, sponsorships and logistics',     prompt: 'Launch the Event Coordinator Agent for Team Rise. Show upcoming events and any logistics tasks.' },
@@ -37,6 +39,19 @@ const AGENTS = [
 const monthEnd = () => new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
   .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 const DEFAULT_GX = { partners: { current: 0, goal: 3 }, points: { current: 0, goal: 15000 }, deadline: monthEnd() }
+
+// "Oct 8–10, 2026" same-month, "Jul 30 – Aug 2, 2026" cross-month
+function formatEventDateRange(startStr, endStr) {
+  if (!startStr || !endStr) return ''
+  const start = new Date(startStr + 'T00:00:00')
+  const end   = new Date(endStr + 'T00:00:00')
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()
+  const startFmt = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const endFmt = sameMonth
+    ? end.toLocaleDateString('en-US', { day: 'numeric' })
+    : end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return `${startFmt}–${endFmt}, ${end.getFullYear()}`
+}
 
 export default function App() {
   const { profile, signOut, updateProfile } = useAuth()
@@ -64,6 +79,11 @@ export default function App() {
   const [recruitList, setRecruitList]     = useState([])
   const [recruitLoading, setRecruitLoading] = useState(false)
   const [convention, setConvention]       = useState(null)
+  const [editingEvent, setEditingEvent]   = useState(false)
+  const [eventForm, setEventForm]         = useState(null)
+  const [eventSaving, setEventSaving]     = useState(false)
+  const [linkCopied, setLinkCopied]       = useState(false)
+  const [ticketScope, setTicketScope]     = useState(new Set(['base', 'superbase']))
 
   useEffect(() => {
     if (profile?.id) {
@@ -109,12 +129,61 @@ export default function App() {
     if (profile?.full_name) fetchGxStats()
   }, [profile?.full_name])
 
-  useEffect(() => {
-    fetch('/api/convention')
+  function loadConvention() {
+    return fetch('/api/convention')
       .then(r => r.json())
       .then(res => { if (res.ok) setConvention(res.data) })
       .catch(() => { /* widget simply hides */ })
-  }, [])
+  }
+  useEffect(() => { loadConvention() }, [])
+
+  function openEventEditor() {
+    setEventForm({
+      event:              convention?.event || '',
+      location:           convention?.location || '',
+      start_date:         convention?.start_date || '',
+      end_date:           convention?.end_date || '',
+      goal:               convention?.goal || '',
+      registration_link:  convention?.registration_link || '',
+    })
+    setEditingEvent(true)
+  }
+
+  async function copyRegistrationLink() {
+    if (!convention?.registration_link) return
+    try {
+      await navigator.clipboard.writeText(convention.registration_link)
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 2000)
+    } catch (e) { console.error('Clipboard write failed:', e) }
+  }
+
+  async function saveEventEditor() {
+    if (!eventForm?.event || !eventForm?.start_date || !eventForm?.end_date) return
+    setEventSaving(true)
+    try {
+      const goalNum = parseInt(eventForm.goal, 10)
+      const nextData = {
+        ...(convention || {}),
+        event:              eventForm.event.trim(),
+        location:           eventForm.location.trim(),
+        start_date:         eventForm.start_date,
+        end_date:           eventForm.end_date,
+        goal:               Number.isFinite(goalNum) && goalNum > 0 ? goalNum : null,
+        registration_link:  eventForm.registration_link.trim() || null,
+      }
+      const { error } = await supabase
+        .from('report_snapshots')
+        .upsert({ report_key: 'convention', data: nextData, updated_at: new Date().toISOString() }, { onConflict: 'report_key' })
+      if (error) throw error
+      await loadConvention()
+      setEditingEvent(false)
+    } catch (e) {
+      console.error('Failed to save event:', e)
+    } finally {
+      setEventSaving(false)
+    }
+  }
 
   async function fetchGxStats() {
     try {
@@ -185,16 +254,20 @@ export default function App() {
     }
   }
 
+  // view/endpoint are code-level routing, not something a saved profile blob
+  // should be able to override — always take those from the built-in def when
+  // one matches, so a stale/blank saved value (e.g. view: '' captured before a
+  // page existed) can never re-lock a feature that's since been unlocked.
   const activeAgents = profile?.custom_agents?.length
     ? profile.custom_agents.map(a => {
         const def = AGENTS.find(d => d.name === a.name)
-        return def ? { ...a, view: a.view ?? def.view } : a
+        return def ? { ...def, ...a, view: def.view } : a
       })
     : AGENTS
   const activeQuickActions = profile?.custom_quick_actions?.length
     ? profile.custom_quick_actions.map(a => {
         const def = QUICK_ACTIONS.find(q => q.label === a.label)
-        return def ? { ...a, endpoint: a.endpoint ?? def.endpoint, view: a.view ?? def.view } : a
+        return def ? { ...def, ...a, endpoint: def.endpoint, view: def.view } : a
       })
     : QUICK_ACTIONS
 
@@ -234,7 +307,8 @@ export default function App() {
     setFnaRunning(false)
   }
 
-  const visiblePipeline = pipeline.filter(p => !graduated[p.name])
+  // Hide anyone who became a recruit (sheet notes) or was manually graduated — sheet rows stay untouched
+  const visiblePipeline = pipeline.filter(p => !graduated[p.name] && !p.joined)
   const hotCount  = visiblePipeline.filter(p => p.heat === 'hot').length
   const warmCount = visiblePipeline.filter(p => p.heat === 'warm').length
   const pPct  = Math.min(100, Math.round((gx.partners.current / gx.partners.goal) * 100))
@@ -285,7 +359,7 @@ export default function App() {
   const initials  = profile?.avatar_initials || (profile?.full_name?.split(' ').map(n => n[0]).join('') || '??')
 
   // Views that take over the whole screen (own header) vs. the profile page (keeps app header)
-  const fullPageViews = ['daily-report', 'licensing', 'gx-tracker', 'prospects', 'recognition']
+  const fullPageViews = ['daily-report', 'licensing', 'gx-tracker', 'prospects', 'recognition', 'follow-up']
   const isFullPage    = fullPageViews.includes(view)
   const offDashboard  = isFullPage || view === 'profile'
 
@@ -339,6 +413,7 @@ export default function App() {
       {view === 'gx-tracker' && <GXTrackerPage onBack={() => setView('dashboard')} />}
       {view === 'prospects' && <ProspectsPage onBack={() => setView('dashboard')} />}
       {view === 'recognition' && <RecognitionPage onBack={() => setView('dashboard')} />}
+      {view === 'follow-up' && <FollowUpPage onBack={() => setView('dashboard')} />}
 
       <div className="dashboard" style={{ display: offDashboard ? 'none' : 'grid' }}>
 
@@ -349,21 +424,93 @@ export default function App() {
             const now = new Date(); now.setHours(0, 0, 0, 0)
             const days = Math.ceil((start - now) / 86400000)
             const live = days <= 0 && now <= new Date(convention.end_date + 'T23:59:59')
+            const hasCount = convention.goal != null && convention.goal > 0
             return (
               <aside className="conv-panel">
-                <div className="panel-label">Convention 2026 · Las Vegas</div>
-                <div className="conv-row">
-                  <div className="conv-days">
-                    <div className="conv-days-num">{live ? '🎰' : days}</div>
-                    <div className="conv-days-label">{live ? "It's convention week!" : days === 1 ? 'day to go' : 'days to go'}</div>
+                <div className="conv-panel-head">
+                  <div className="panel-label" style={{ marginBottom: 0, paddingBottom: 0, border: 'none' }}>
+                    {convention.event}{convention.location ? ` · ${convention.location}` : ''}
                   </div>
-                  <div className="conv-count">
-                    <div className="conv-count-num">{convention.total}</div>
-                    <div className="conv-count-label">confirmed{convention.goal ? ` of ${convention.goal}` : ''}</div>
-                  </div>
+                  <button className="conv-edit-btn" onClick={openEventEditor} title="Edit event">✎</button>
                 </div>
-                <div className="progress-track"><div className="progress-fill" style={{ width: Math.min(100, (convention.total / (convention.goal || 300)) * 100) + '%' }} /></div>
-                <div className="conv-dates">July 6–9, 2026</div>
+
+                {editingEvent ? (
+                  <div className="conv-edit-form">
+                    <label>Event name<input value={eventForm.event} onChange={e => setEventForm(f => ({ ...f, event: e.target.value }))} placeholder="Champions Summit" /></label>
+                    <label>Location<input value={eventForm.location} onChange={e => setEventForm(f => ({ ...f, location: e.target.value }))} placeholder="Nashville, TN" /></label>
+                    <div className="conv-edit-row">
+                      <label>Start date<input type="date" value={eventForm.start_date} onChange={e => setEventForm(f => ({ ...f, start_date: e.target.value }))} /></label>
+                      <label>End date<input type="date" value={eventForm.end_date} onChange={e => setEventForm(f => ({ ...f, end_date: e.target.value }))} /></label>
+                    </div>
+                    <label>Registration goal (optional)<input type="number" min="0" value={eventForm.goal} onChange={e => setEventForm(f => ({ ...f, goal: e.target.value }))} placeholder="leave blank to hide count" /></label>
+                    <label>Registration link (optional)<input value={eventForm.registration_link} onChange={e => setEventForm(f => ({ ...f, registration_link: e.target.value }))} placeholder="https://..." /></label>
+                    <div className="conv-edit-actions">
+                      <button className="conv-edit-cancel" onClick={() => setEditingEvent(false)} disabled={eventSaving}>Cancel</button>
+                      <button className="conv-edit-save" onClick={saveEventEditor} disabled={eventSaving || !eventForm.event || !eventForm.start_date || !eventForm.end_date}>{eventSaving ? 'Saving…' : 'Save'}</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="conv-row">
+                      <div className="conv-days">
+                        <div className="conv-days-num">{live ? '🎰' : days}</div>
+                        <div className="conv-days-label">{live ? "It's event week!" : days === 1 ? 'day to go' : 'days to go'}</div>
+                      </div>
+                      {hasCount && (
+                        <div className="conv-count">
+                          <div className="conv-count-num">{convention.total || 0}</div>
+                          <div className="conv-count-label">confirmed of {convention.goal}</div>
+                        </div>
+                      )}
+                    </div>
+                    {hasCount && <div className="progress-track"><div className="progress-fill" style={{ width: Math.min(100, ((convention.total || 0) / convention.goal) * 100) + '%' }} /></div>}
+                    <div className="conv-dates">{formatEventDateRange(convention.start_date, convention.end_date)}</div>
+                    {convention.tickets_total > 0 && (() => {
+                      const byScope = convention.tickets_by_scope || {}
+                      const scopes = ['base', 'superbase', 'superteam']
+                      const selected = scopes.filter(s => ticketScope.has(s))
+                      const shown = selected.reduce((acc, s) => {
+                        const b = byScope[s] || { total: 0, named: 0 }
+                        acc.total += b.total; acc.named += b.named
+                        return acc
+                      }, { total: 0, named: 0 })
+                      function toggleTicketScope(s) {
+                        setTicketScope(prev => {
+                          const next = new Set(prev)
+                          next.has(s) ? next.delete(s) : next.add(s)
+                          if (next.size === 0) next.add('base')
+                          return next
+                        })
+                      }
+                      return (
+                        <div className="conv-tickets">
+                          <div className="conv-tickets-label">
+                            <span>Tickets with a name</span>
+                            <span className="conv-tickets-num">{shown.named} / {shown.total}</span>
+                          </div>
+                          <div className="progress-track"><div className="progress-fill gold" style={{ width: (shown.total ? Math.min(100, (shown.named / shown.total) * 100) : 0) + '%' }} /></div>
+                          <div className="conv-scope-row">
+                            {scopes.map(s => (
+                              <button
+                                key={s}
+                                className={'conv-scope-chip' + (ticketScope.has(s) ? ' active' : '')}
+                                onClick={() => toggleTicketScope(s)}
+                                title={s === 'superteam' ? 'No data tracked for this account' : ''}
+                              >
+                                {s === 'base' ? 'Base' : s === 'superbase' ? 'Super Base' : 'Super Team'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })()}
+                    {convention.registration_link && (
+                      <button className="conv-copy-link-btn" onClick={copyRegistrationLink}>
+                        {linkCopied ? '✓ Copied!' : '🔗 Copy Registration Link'}
+                      </button>
+                    )}
+                  </>
+                )}
               </aside>
             )
           })()}
@@ -400,38 +547,6 @@ export default function App() {
           </aside>
 
           <RecruitPipeline recruits={recruitList} loading={recruitLoading} onRefresh={loadRecruitSteps} />
-
-          <div className="lovable-panel">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div className="panel-label" style={{ marginBottom: 0, borderBottom: 'none', paddingBottom: 0 }}>Team RISE App</div>
-              <button className="lovable-switch-btn" onClick={() => {
-                localStorage.removeItem('lovable_ready_' + profile?.id)
-                setShowLovableBanner(true)
-                setLovableKey(k => k + 1)
-              }}>Switch Account</button>
-            </div>
-            <div className="lovable-wrap">
-              {showLovableBanner && (
-                <div className="lovable-banner">
-                  <div className="lovable-banner-text">
-                    <span className="lovable-banner-title">First Time Setup</span>
-                    Enter your team's access code in the app below, then click "I'm In" when you're through.
-                  </div>
-                  <button className="lovable-ready-btn" onClick={() => {
-                    localStorage.setItem('lovable_ready_' + profile?.id, 'true')
-                    setShowLovableBanner(false)
-                  }}>I'm In</button>
-                </div>
-              )}
-              <iframe
-                key={`${profile?.id}-${lovableKey}`}
-                src={`https://teamrise.lovable.app/?t=${lovableKey}`}
-                className="lovable-frame"
-                title="Team RISE Lovable App"
-                allow="camera; microphone; fullscreen"
-              />
-            </div>
-          </div>
         </div>
 
         {/* CENTER — Actions + Agents + FNA + Feed */}
@@ -513,6 +628,39 @@ export default function App() {
                 activeSkill="Run FNA"
               />
             )}
+          </section>
+
+          {/* Team RISE App */}
+          <section className="lovable-panel">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div className="panel-label" style={{ marginBottom: 0, borderBottom: 'none', paddingBottom: 0 }}>Team RISE App</div>
+              <button className="lovable-switch-btn" onClick={() => {
+                localStorage.removeItem('lovable_ready_' + profile?.id)
+                setShowLovableBanner(true)
+                setLovableKey(k => k + 1)
+              }}>Switch Account</button>
+            </div>
+            <div className="lovable-wrap">
+              {showLovableBanner && (
+                <div className="lovable-banner">
+                  <div className="lovable-banner-text">
+                    <span className="lovable-banner-title">First Time Setup</span>
+                    Enter your team's access code in the app below, then click "I'm In" when you're through.
+                  </div>
+                  <button className="lovable-ready-btn" onClick={() => {
+                    localStorage.setItem('lovable_ready_' + profile?.id, 'true')
+                    setShowLovableBanner(false)
+                  }}>I'm In</button>
+                </div>
+              )}
+              <iframe
+                key={`${profile?.id}-${lovableKey}`}
+                src={`https://teamrise.lovable.app/?t=${lovableKey}`}
+                className="lovable-frame"
+                title="Team RISE Lovable App"
+                allow="camera; microphone; fullscreen"
+              />
+            </div>
           </section>
 
         </main>
