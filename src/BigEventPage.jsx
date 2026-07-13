@@ -39,8 +39,9 @@ export default function BigEventPage({ onBack }) {
   const pct       = goal > 0 ? Math.round((total / goal) * 100) : 0
   const hasGoal   = goal > 0 && convention?.tickets_total != null
 
-  const unnamedY = valueToY(total, goal)
-  const namedY   = valueToY(named, goal)
+  const unnamedY  = valueToY(total, goal)
+  const namedY    = valueToY(named, goal)
+  const namedList = convention?.tickets_named_list || []
 
   const ticks = hasGoal
     ? [0, 0.2, 0.4, 0.6, 0.8, 1].map(f => ({
@@ -79,6 +80,7 @@ export default function BigEventPage({ onBack }) {
         )}
 
         {convention && !loading && !error && (
+          <>
           <div className="dr-card">
             <div className="r-section-head">
               🌡️ {(convention.event || 'BIG EVENT').toUpperCase()} — REGISTRATION
@@ -172,6 +174,25 @@ export default function BigEventPage({ onBack }) {
               )}
             </div>
           </div>
+
+          {namedList.length > 0 && (
+            <div className="dr-card">
+              <div className="r-section-head">
+                <span>🎟️ NAMED REGISTRANTS</span>
+                <span className="dr-section-tag">{namedList.length}</span>
+              </div>
+              <div className="dr-card-body">
+                <div className="reco-grid">
+                  {namedList.map((name, i) => (
+                    <div key={name + '|' + i} className="reco-chip reco-chip--teal">
+                      <span className="reco-chip-name">{name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          </>
         )}
       </div>
 
