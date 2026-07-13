@@ -186,7 +186,6 @@ export default function BigEventPage({ onBack }) {
                   {namedList.map((entry, i) => (
                     <div key={entry.name + '|' + i} className="reco-chip reco-chip--teal">
                       <span className="reco-chip-name">{entry.name}</span>
-                      {entry.count > 1 && <span className="reco-chip-count">×{entry.count}</span>}
                     </div>
                   ))}
                 </div>
