@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { toPng } from 'html-to-image'
+import { useEffect, useMemo, useState } from 'react'
 
 const fmt = n => Math.round(n || 0).toLocaleString('en-US')
 const SCOPES = ['base', 'superbase', 'superteam']
@@ -9,9 +8,7 @@ export default function GXTrackerPage({ onBack, theme, setTheme }) {
   const [board, setBoard]         = useState(null)
   const [error, setError]         = useState(null)
   const [loading, setLoading]     = useState(true)
-  const [capturing, setCapturing] = useState(false)
   const [zoom, setZoom]           = useState(100)
-  const captureRef = useRef(null)
 
   function zoomOut() { setZoom(z => Math.max(50, z - 10)) }
   function zoomIn()  { setZoom(z => Math.min(200, z + 10)) }
@@ -48,27 +45,6 @@ export default function GXTrackerPage({ onBack, theme, setTheme }) {
       .finally(() => alive && setLoading(false))
     return () => { alive = false }
   }, [resolvedKey])
-
-  async function handleDownload() {
-    if (!captureRef.current || capturing) return
-    setCapturing(true)
-    try {
-      const dataUrl = await toPng(captureRef.current, {
-        pixelRatio: 3,
-        backgroundColor: getComputedStyle(document.body).backgroundColor,
-        cacheBust: true,
-      })
-      const link = document.createElement('a')
-      const dateStr = new Date().toISOString().slice(0, 10)
-      link.download = `gx-tracker-${resolvedKey}-${dateStr}.png`
-      link.href = dataUrl
-      link.click()
-    } catch (e) {
-      setError('Could not create image: ' + e.message)
-    } finally {
-      setCapturing(false)
-    }
-  }
 
   function toggleScope(s) {
     setScope(prev => {
@@ -109,6 +85,14 @@ export default function GXTrackerPage({ onBack, theme, setTheme }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative', zIndex: 1 }}>
           <div className="dr-date-chip">{asOfDate.toUpperCase()}</div>
+          <div className="gx-scope-group">
+            {SCOPES.map(s => (
+              <label key={s} className={'gx-scope-chip' + (scope.has(s) ? ' active' : '')} onClick={(e) => { e.preventDefault(); toggleScope(s) }}>
+                <span className="box" />
+                {s === 'base' ? 'Base' : s === 'superbase' ? 'Super Base' : 'Super Team'}
+              </label>
+            ))}
+          </div>
           {setTheme && (
             <button className="dr-print-btn" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
               {theme === 'dark' ? '☀ LIGHT' : '🌙 DARK'}
@@ -119,17 +103,16 @@ export default function GXTrackerPage({ onBack, theme, setTheme }) {
             <button className="dr-print-btn gx-zoom-pct" onClick={() => setZoom(100)} title="Reset zoom">{zoom}%</button>
             <button className="dr-print-btn gx-zoom-btn" onClick={zoomIn} disabled={zoom >= 200} title="Zoom in">+</button>
           </div>
-          <button className="dr-print-btn" onClick={handleDownload} disabled={capturing}>
-            {capturing ? 'SAVING…' : '⬇ DOWNLOAD'}
-          </button>
-          <button className="dr-print-btn" onClick={() => window.print()}>PRINT</button>
         </div>
       </header>
 
       {asOf && <div className="dr-freshness">Last GX sync: {asOf} — use Sync GX on the dashboard (local) to refresh</div>}
+      {scope.has('superteam') && (
+        <div className="gx-scope-note gx-scope-note-standalone">Super Team returns no records for this account (verified 7/13/26) — shown for parity with BSCpro's own selector.</div>
+      )}
 
       <div className="gx-zoom-viewport" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}>
-      <div className="lic-page" ref={captureRef}>
+      <div className="lic-page">
         <div className="gx-hero">
           <h1 className="gx-hero-title">RISE <span className="accent">{heroTitle}</span></h1>
           <div className="gx-hero-sub">GX TRACKER · {monthName.toUpperCase()} {new Date().getFullYear()} · MTD</div>
@@ -148,19 +131,6 @@ export default function GXTrackerPage({ onBack, theme, setTheme }) {
               <div className="gx-hero-label">Days Left</div>
             </div>
           </div>
-        </div>
-
-        <div className="gx-scope-bar">
-          <span className="gx-scope-caption">Scope</span>
-          {SCOPES.map(s => (
-            <label key={s} className={'gx-scope-chip' + (scope.has(s) ? ' active' : '')} onClick={(e) => { e.preventDefault(); toggleScope(s) }}>
-              <span className="box" />
-              {s === 'base' ? 'Base' : s === 'superbase' ? 'Super Base' : 'Super Team'}
-            </label>
-          ))}
-          {scope.has('superteam') && (
-            <div className="gx-scope-note">Super Team returns no records for this account (verified 7/13/26) — shown for parity with BSCpro's own selector.</div>
-          )}
         </div>
 
         {loading && <div className="dr-card" style={{ marginTop: 18 }}><div className="dr-card-body dr-loading">Loading standings…</div></div>}
