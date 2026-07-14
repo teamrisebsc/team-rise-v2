@@ -1,5 +1,14 @@
 const { chromium: playwright } = require('playwright-core')
-const chromium = require('@sparticuz/chromium-min').default
+// @sparticuz/chromium-min ships as a native ES Module ("type":"module") — a
+// CJS-side require() of it throws ERR_REQUIRE_ESM on Vercel's Node runtime
+// (this worked via require() in local Windows testing, which was misleading;
+// the dynamic import is required in production). Loaded lazily inside the
+// function that needs it since a CJS file can't `await import()` at top level.
+let chromiumPromise
+function getChromium() {
+  if (!chromiumPromise) chromiumPromise = import('@sparticuz/chromium-min').then(m => m.default)
+  return chromiumPromise
+}
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -41,6 +50,7 @@ const pad2 = n => String(n).padStart(2, '0')
 // "your personal production"/"your personal recruits"), so unlike the admin baseshop
 // scraper this never touches scope_filter — most personal accounts don't even have it.
 async function scrapeGxForUser(email, password) {
+  const chromium = await getChromium()
   const browser = await playwright.launch({
     args: chromium.args,
     executablePath: await chromium.executablePath(CHROMIUM_PACK_URL),
