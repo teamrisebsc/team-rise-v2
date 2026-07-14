@@ -200,7 +200,7 @@ export default function App() {
     setGxSyncing(true)
     try {
       const name = profile?.full_name || ''
-      const res  = await fetch(`/api/gx-sync?name=${encodeURIComponent(name)}`, {
+      const res  = await fetch(`/api/gx-stats?name=${encodeURIComponent(name)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

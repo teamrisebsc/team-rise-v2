@@ -5,7 +5,7 @@
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "functions": {
-    "api/gx-sync.js": {
+    "api/gx-stats.js": {
       "maxDuration": 60
     }
   }

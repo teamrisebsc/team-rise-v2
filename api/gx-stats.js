@@ -1,3 +1,6 @@
+const { chromium: playwright } = require('playwright-core')
+const chromium = require('@sparticuz/chromium-min').default
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'content-type',
@@ -6,6 +9,13 @@ const CORS = {
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY
+const GX_RECRUIT_GOAL = 3
+const GX_POINTS_GOAL = 15000
+
+// Version pinned to match the installed @sparticuz/chromium-min release exactly —
+// the -min package has no bundled binary, it fetches this pack tar on cold start
+// and caches the extracted binary in /tmp for subsequent warm invocations.
+const CHROMIUM_PACK_URL = 'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar'
 
 // GX window resets monthly — deadline is always the last day of the current month
 function gxDeadline() {
@@ -24,116 +34,171 @@ function findEntry(rows, name) {
   return rows.find(r => r.name?.toLowerCase().includes(first)) || null
 }
 
-function fmt(n) { return Math.round(n).toLocaleString('en-US') }
+const pad2 = n => String(n).padStart(2, '0')
 
-function formatDailyReport(data, updatedAt) {
-  const d       = new Date(updatedAt || Date.now())
-  const dateStr = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-  const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-  const month   = data.month_name || data.month || ''
-  const p       = []
+// Personal BSCpro logins are inherently scoped to that person's own production/recruits
+// (per BSCpro's own tiering — see bscpro.com pricing: Free/Personal tiers only ever see
+// "your personal production"/"your personal recruits"), so unlike the admin baseshop
+// scraper this never touches scope_filter — most personal accounts don't even have it.
+async function scrapeGxForUser(email, password) {
+  const browser = await playwright.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath(CHROMIUM_PACK_URL),
+    headless: true,
+  })
 
-  p.push(`<div class="r-header">`)
-  p.push(`<div class="r-title">📊 Team RISE Daily Briefing</div>`)
-  p.push(`<div class="r-subtitle">${dateStr} &nbsp;·&nbsp; data as of ${timeStr}</div>`)
-  p.push(`</div>`)
+  try {
+    const page = await browser.newPage()
+    await page.setViewportSize({ width: 1440, height: 900 })
 
-  p.push(`<div class="r-section">`)
-  p.push(`<div class="r-section-head">👥 Recruits — ${month}</div>`)
-  if (data.recruits) {
-    const r = data.recruits
-    p.push(`<div class="r-stat-row">`)
-    p.push(`<div class="r-stat"><div class="r-stat-num">${r.rise}</div><div class="r-stat-label">RISE baseshop</div></div>`)
-    if (r.ffg    > 0) p.push(`<div class="r-stat"><div class="r-stat-num">${r.ffg}</div><div class="r-stat-label">FFG</div></div>`)
-    if (r.ignite > 0) p.push(`<div class="r-stat"><div class="r-stat-num">${r.ignite}</div><div class="r-stat-label">Ignite</div></div>`)
-    if (r.praise > 0) p.push(`<div class="r-stat"><div class="r-stat-num">${r.praise}</div><div class="r-stat-label">Praise</div></div>`)
-    if (r.freedom > 0) p.push(`<div class="r-stat"><div class="r-stat-num">${r.freedom}</div><div class="r-stat-label">Freedom</div></div>`)
-    p.push(`<div class="r-stat r-stat--total"><div class="r-stat-num">${r.total}</div><div class="r-stat-label">Total</div></div>`)
-    p.push(`</div>`)
-  } else {
-    p.push(`<div class="r-unavail">Recruit data unavailable</div>`)
-  }
-  p.push(`</div>`)
-
-  p.push(`<div class="r-section">`)
-  p.push(`<div class="r-section-head">👨‍👩‍👧 Families Helped — ${month} (pts)</div>`)
-  if (data.families_helped) {
-    const fh = data.families_helped
-    p.push(`<div class="r-stat-row">`)
-    p.push(`<div class="r-stat"><div class="r-stat-num">$${fmt(fh.gross_base)}</div><div class="r-stat-label">RISE baseshop</div></div>`)
-    p.push(`<div class="r-stat"><div class="r-stat-num">$${fmt(fh.super_base_contribution)}</div><div class="r-stat-label">Superbase SMDs</div></div>`)
-    p.push(`<div class="r-stat r-stat--total"><div class="r-stat-num">$${fmt(fh.gross_super_base)}</div><div class="r-stat-label">Total hierarchy</div></div>`)
-    p.push(`</div>`)
-  } else {
-    p.push(`<div class="r-unavail">mywfg data unavailable</div>`)
-  }
-  p.push(`</div>`)
-
-  p.push(`<div class="r-section">`)
-  p.push(`<div class="r-section-head">🏆 GX Top 5 — Closest to Qualified</div>`)
-  if (data.gx_top5?.length) {
-    p.push(`<div class="r-gx-list">`)
-    data.gx_top5.forEach((a, i) => {
-      const needs = !a.qualified ? (() => {
-        const n = []
-        if (a.needR > 0) n.push(`${a.needR} rec`)
-        if (a.needP > 0) n.push(`$${fmt(a.needP)} pts`)
-        return n.length ? `needs ${n.join(' + ')}` : ''
-      })() : ''
-      p.push(`<div class="r-gx-row${a.qualified ? ' r-gx-qualified' : ''}">`)
-      p.push(`<span class="r-gx-rank">${i + 1}</span>`)
-      p.push(`<span class="r-gx-name">${a.name}</span>`)
-      p.push(`<span class="r-gx-progress">${a.recruits}/3 rec &nbsp;·&nbsp; ${fmt(a.points)} pts</span>`)
-      p.push(a.qualified ? `<span class="r-gx-qualified-badge">✅ Qualified!</span>` : `<span class="r-gx-needs">${needs}</span>`)
-      p.push(`</div>`)
-    })
-    p.push(`</div>`)
-  } else {
-    p.push(`<div class="r-unavail">GX data unavailable</div>`)
-  }
-  p.push(`</div>`)
-
-  p.push(`<div class="r-section">`)
-  if (data.licensing) {
-    const lic = data.licensing
-    p.push(`<div class="r-section-head">🔓 Licensing — ${lic.total} in pipeline</div>`)
-    if (lic.test_scheduled?.length) {
-      p.push(`<div class="r-lic-sub-head">Tests scheduled</div>`)
-      p.push(`<div class="r-lic-list">`)
-      lic.test_scheduled.forEach(t =>
-        p.push(`<div class="r-lic-row">${t.name}${t.state ? ` (${t.state})` : ''} — ${t.testDate}</div>`)
-      )
-      p.push(`</div>`)
+    await page.goto('https://bscpro.com/auth/login', { waitUntil: 'domcontentloaded', timeout: 25000 })
+    await page.waitForSelector('#login', { timeout: 15000 })
+    await page.fill('#login', email)
+    await page.fill('#password', password)
+    await page.click('input[type="submit"]')
+    try {
+      await page.waitForURL('**/dashboard**', { timeout: 20000 })
+    } catch {
+      throw new Error('BSCpro login failed — check the email/password saved in Profile Settings.')
     }
-    if (lic.needs_retake > 0)
-      p.push(`<div class="r-lic-retake">⚠ ${lic.needs_retake} agents need retake</div>`)
-    if (!lic.test_scheduled?.length && !lic.needs_retake)
-      p.push(`<div class="r-unavail">No tests scheduled or retakes pending</div>`)
-  } else {
-    p.push(`<div class="r-section-head">🔓 Licensing</div>`)
-    p.push(`<div class="r-unavail">Licensing data unavailable</div>`)
-  }
-  p.push(`</div>`)
 
-  return p.join('\n')
+    const now = new Date()
+    const year = now.getFullYear()
+    const monthNum = now.getMonth() + 1
+    const monShort = now.toLocaleDateString('en-US', { month: 'short' })
+    const startIso = `${year}-${pad2(monthNum)}-01`
+    const endIso = `${year}-${pad2(monthNum)}-${pad2(now.getDate())}`
+    const rangeInput = `1 ${monShort} ${year} - ${now.getDate()} ${monShort} ${year}`
+
+    // --- Production (net of chargebacks), current month to date ---
+    await page.goto('https://bscpro.com/production_new', { waitUntil: 'domcontentloaded', timeout: 30000 })
+    await page.waitForTimeout(3500)
+    await page.evaluate(({ startIso, endIso }) => {
+      const $ = window.jQuery || window.$
+      if (!$) return
+      const el = $('input[name="production_daterange"]')
+      if (!el.length) return
+      const drp = el.data('daterangepicker')
+      const moment = window.moment
+      if (!drp || !moment) return
+      const start = moment(startIso)
+      const end = moment(endIso)
+      drp.setStartDate(start)
+      drp.setEndDate(end)
+      if (typeof drp.callback === 'function') drp.callback(start, end, drp.chosenLabel)
+    }, { startIso, endIso })
+    await page.waitForTimeout(4000)
+    await page.evaluate(() => {
+      const grid = window.w2ui && window.w2ui['grid']
+      if (grid) { grid.limit = 2000; grid.reload() }
+    })
+    await page.waitForTimeout(2500)
+
+    const prodRecords = await page.evaluate(() => {
+      const grid = window.w2ui && window.w2ui['grid']
+      if (!grid || !grid.records) return []
+      return grid.records.map(r => ({
+        points: parseFloat(r.base_written_points || 0) || 0,
+        cb_date: r.cb_date || '',
+      }))
+    })
+    const points = prodRecords
+      .filter(r => !(r.cb_date && String(r.cb_date).trim() !== '' && String(r.cb_date).trim() !== '0000-00-00'))
+      .reduce((sum, r) => sum + r.points, 0)
+
+    // --- Recruits (active + inactive), current month start dates ---
+    await page.goto('https://bscpro.com/speedfilter_new', { waitUntil: 'domcontentloaded', timeout: 30000 })
+    await page.waitForTimeout(3500)
+    await page.evaluate(({ rangeInput }) => {
+      const input = document.querySelector('input[name="speedfilter_daterange"]')
+      if (input) {
+        input.value = rangeInput
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+      const gridId = Object.keys(window.w2ui || {}).find(k => window.w2ui[k].url?.includes('speedfilter'))
+      if (gridId) {
+        window.w2ui[gridId].postData = window.w2ui[gridId].postData || {}
+        window.w2ui[gridId].postData.select_date = rangeInput
+        window.w2ui[gridId].postData.recruit_filter = 'all_recruits' // include inactive — see reference_bscpro_recruit_filter_gap
+        window.w2ui[gridId].reload()
+      }
+    }, { rangeInput })
+    await page.waitForTimeout(4000)
+
+    const recruitRecords = await page.evaluate(() => {
+      const grid = window.w2ui && window.w2ui['grid']
+      if (!grid || !grid.records) return []
+      return grid.records.map(r => ({ start_date: r.start_date || '' }))
+    })
+    const ymSlash = `${year}/${pad2(monthNum)}`
+    const ymDash = `${year}-${pad2(monthNum)}`
+    const recruits = recruitRecords.filter(r => {
+      const d = String(r.start_date || '')
+      return d.startsWith(ymSlash) || d.startsWith(ymDash)
+    }).length
+
+    return { points, recruits }
+  } finally {
+    await browser.close()
+  }
 }
 
-async function handleDailyReport() {
+// POST /api/gx-stats — sync this user's own GX numbers from BSCpro (used by the
+// "Sync GX" button). Kept in this file rather than a separate api/gx-sync.js
+// because Vercel's Hobby plan caps a deployment at 12 Serverless Functions —
+// this project was already at 12 before this feature existed.
+async function handleSync(event) {
+  const name = event.queryStringParameters?.name || ''
+  let body = {}
+  try { body = JSON.parse(event.body || '{}') } catch {}
+  const { bscproEmail, bscproPassword } = body
+
+  if (!bscproEmail || !bscproPassword) {
+    return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: false, error: 'Add your BSCpro email and password in Profile Settings before syncing.' }) }
+  }
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: false, error: 'Supabase not configured.' }) }
   }
+
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/report_snapshots?report_key=eq.daily_report&select=data,updated_at&limit=1`,
-      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
-    )
-    if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`)
-    const rows = await res.json()
-    if (!rows?.length) {
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: false, error: 'No snapshot yet — run node push_daily_snapshot.js from bscpro-scraper.' }) }
+    const { points, recruits } = await scrapeGxForUser(bscproEmail, bscproPassword)
+    const qualified = recruits >= GX_RECRUIT_GOAL && points >= GX_POINTS_GOAL
+    const entry = {
+      name,
+      recruits,
+      points: Math.round(points),
+      qualified,
+      needR: Math.max(0, GX_RECRUIT_GOAL - recruits),
+      needP: Math.max(0, GX_POINTS_GOAL - points),
     }
-    const { data, updated_at } = rows[0]
-    return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true, html: true, response: formatDailyReport(data, updated_at) }) }
+
+    // Upsert this person's personal ('base') entry — same gx_cache table/shape the
+    // local push_gx_to_supabase.mjs bulk push uses, so gx-stats/gx-leaderboard reads
+    // don't need to know whether a row came from a personal sync or the admin scrape.
+    await fetch(`${SUPABASE_URL}/rest/v1/gx_cache`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify([{ name, data: entry, updated_at: new Date().toISOString() }]),
+    })
+
+    return {
+      statusCode: 200,
+      headers: CORS,
+      body: JSON.stringify({
+        ok: true,
+        partners: { current: recruits, goal: GX_RECRUIT_GOAL },
+        points: { current: Math.round(points), goal: GX_POINTS_GOAL },
+        name,
+        qualified,
+        deadline: gxDeadline(),
+        synced_at: new Date().toISOString(),
+      }),
+    }
   } catch (e) {
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: false, error: e.message }) }
   }
@@ -141,7 +206,7 @@ async function handleDailyReport() {
 
 const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' }
-  if (event.httpMethod === 'POST') return handleDailyReport()
+  if (event.httpMethod === 'POST') return handleSync(event)
 
   const name = event.queryStringParameters?.name || ''
 
