@@ -10,7 +10,11 @@ export default function GXTrackerPage({ onBack, theme, setTheme }) {
   const [error, setError]         = useState(null)
   const [loading, setLoading]     = useState(true)
   const [capturing, setCapturing] = useState(false)
+  const [zoom, setZoom]           = useState(100)
   const captureRef = useRef(null)
+
+  function zoomOut() { setZoom(z => Math.max(50, z - 10)) }
+  function zoomIn()  { setZoom(z => Math.min(200, z + 10)) }
 
   const monthName = new Date().toLocaleDateString('en-US', { month: 'long' })
   const asOfDate  = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -110,6 +114,11 @@ export default function GXTrackerPage({ onBack, theme, setTheme }) {
               {theme === 'dark' ? '☀ LIGHT' : '🌙 DARK'}
             </button>
           )}
+          <div className="gx-zoom-group">
+            <button className="dr-print-btn gx-zoom-btn" onClick={zoomOut} disabled={zoom <= 50} title="Zoom out">−</button>
+            <button className="dr-print-btn gx-zoom-pct" onClick={() => setZoom(100)} title="Reset zoom">{zoom}%</button>
+            <button className="dr-print-btn gx-zoom-btn" onClick={zoomIn} disabled={zoom >= 200} title="Zoom in">+</button>
+          </div>
           <button className="dr-print-btn" onClick={handleDownload} disabled={capturing}>
             {capturing ? 'SAVING…' : '⬇ DOWNLOAD'}
           </button>
@@ -119,6 +128,7 @@ export default function GXTrackerPage({ onBack, theme, setTheme }) {
 
       {asOf && <div className="dr-freshness">Last GX sync: {asOf} — use Sync GX on the dashboard (local) to refresh</div>}
 
+      <div className="gx-zoom-viewport" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}>
       <div className="lic-page" ref={captureRef}>
         <div className="gx-hero">
           <h1 className="gx-hero-title">RISE <span className="accent">{heroTitle}</span></h1>
@@ -201,6 +211,7 @@ export default function GXTrackerPage({ onBack, theme, setTheme }) {
         {board && !loading && !error && (
           <div className="gx-board-foot">RISE · {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · {ranked.length} on the board</div>
         )}
+      </div>
       </div>
 
       <div className="status-bar">
