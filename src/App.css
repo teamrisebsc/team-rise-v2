@@ -1064,9 +1064,9 @@ body[data-theme="light"] .gxl-row.qualified { background: rgba(34,197,94,0.06); 
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(120% 140% at 8% -10%, rgba(255,255,255,0.14) 0%, transparent 55%);
 }
-.gx-hero-title { position: relative; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.01em; color: #fff; text-wrap: balance; }
+.gx-hero-title { position: relative; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.01em; color: #fff; text-wrap: balance; text-align: center; }
 .gx-hero-title .accent { color: #7fe9df; }
-.gx-hero-sub { position: relative; font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,255,255,0.62); margin-top: 6px; }
+.gx-hero-sub { position: relative; font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,255,255,0.62); margin-top: 6px; text-align: center; }
 .gx-hero-rule { position: relative; height: 1px; margin: 16px 0; background: linear-gradient(90deg, rgba(255,255,255,0.32), transparent); }
 .gx-hero-stats { position: relative; display: flex; gap: 36px; flex-wrap: wrap; }
 .gx-hero-num { font-size: 30px; font-weight: 800; color: #fff; line-height: 1; font-variant-numeric: tabular-nums; }
