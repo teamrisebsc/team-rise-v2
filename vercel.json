@@ -6,8 +6,7 @@
   ],
   "functions": {
     "api/gx-sync.js": {
-      "maxDuration": 60,
-      "memory": 1536
+      "maxDuration": 60
     }
   }
 }
