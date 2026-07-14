@@ -111,7 +111,7 @@ export default function GXTrackerPage({ onBack, theme, setTheme }) {
         <div className="gx-scope-note gx-scope-note-standalone">Super Team returns no records for this account (verified 7/13/26) — shown for parity with BSCpro's own selector.</div>
       )}
 
-      <div className="gx-zoom-viewport" style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}>
+      <div className="gx-zoom-viewport" style={{ zoom: zoom / 100 }}>
       <div className="lic-page">
         <div className="gx-hero">
           <h1 className="gx-hero-title">RISE <span className="accent">{heroTitle}</span></h1>

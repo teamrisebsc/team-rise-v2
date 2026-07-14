@@ -776,8 +776,7 @@ body[data-theme="light"] .prof-pass-toggle { background: rgba(53,111,125,0.08); 
 .gx-zoom-group { display: flex; align-items: center; gap: 4px; }
 .gx-zoom-btn { padding: 6px 12px; font-size: 13px; line-height: 1; }
 .gx-zoom-pct { padding: 6px 10px; min-width: 52px; cursor: pointer; }
-.gx-zoom-viewport { transition: transform 0.15s ease-out; }
-@media print { .gx-zoom-group, .gx-scope-group { display: none !important; } .gx-zoom-viewport { transform: none !important; } }
+@media print { .gx-zoom-group, .gx-scope-group { display: none !important; } .gx-zoom-viewport { zoom: 1 !important; } }
 
 .dr-page {
   max-width: 1200px; margin: 0 auto; padding: 24px 24px 80px;
