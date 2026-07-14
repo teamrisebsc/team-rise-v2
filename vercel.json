@@ -3,5 +3,11 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ]
+  ],
+  "functions": {
+    "api/gx-sync.js": {
+      "maxDuration": 60,
+      "memory": 1536
+    }
+  }
 }
