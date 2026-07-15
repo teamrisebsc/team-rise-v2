@@ -45,11 +45,61 @@ function findEntry(rows, name) {
 
 const pad2 = n => String(n).padStart(2, '0')
 
-// Personal BSCpro logins are inherently scoped to that person's own production/recruits
-// (per BSCpro's own tiering — see bscpro.com pricing: Free/Personal tiers only ever see
-// "your personal production"/"your personal recruits"), so unlike the admin baseshop
-// scraper this never touches scope_filter — most personal accounts don't even have it.
-async function scrapeGxForUser(email, password) {
+function normalizeName(s) {
+  return String(s || '')
+    .replace(/\s*\([A-Za-z0-9]{4,8}\)\s*$/, '') // strip trailing "(CODE)"
+    .trim()
+    .toLowerCase()
+}
+
+// Requires every word of the target name to appear in the candidate — safer than a
+// bare .includes() (which would match any "Kaili ___" against a lone "Kaili").
+function nameMatches(candidate, target) {
+  const c = normalizeName(candidate)
+  const tParts = normalizeName(target).split(' ').filter(Boolean)
+  return c && tParts.length > 0 && tParts.every(p => c.includes(p))
+}
+
+function extractAgentNames(raw) {
+  if (!raw) return []
+  if (Array.isArray(raw)) {
+    return raw.map(a => {
+      if (typeof a === 'string') {
+        const m = a.match(/agent_name='([^']+)'/)
+        return m ? m[1].trim() : a.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+      }
+      return a?.name || a?.agent_name || ''
+    }).filter(Boolean)
+  }
+  if (typeof raw === 'string') {
+    const matches = raw.match(/agent_name='([^']+)'/g)
+    if (matches) return matches.map(m => m.match(/agent_name='([^']+)'/)[1].trim())
+    const plain = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    return plain ? [plain] : []
+  }
+  if (typeof raw === 'object') {
+    const n = raw.name || raw.agent_name
+    return n ? [n.trim()] : []
+  }
+  return []
+}
+
+function extractRecruiterName(raw) {
+  if (!raw) return ''
+  if (typeof raw === 'string') return raw.trim()
+  if (typeof raw === 'object') return (raw.name || raw.agent_name || '').trim()
+  return String(raw)
+}
+
+// Olivia/most SMD-tier BSCpro logins have baseshop-wide visibility — production_new
+// and speedfilter_new return EVERYONE'S records, not just the logged-in person's own
+// (confirmed live 7/15/26: Olivia's login returned 7 recruits, none of which were
+// actually hers). "Personal" GX credit must be attributed the same way the admin
+// baseshop scraper does it: only count a production record if this person's name is
+// among its listed agents, and only count a recruit if this person is its recruiter —
+// login scope alone (Free/Personal tier accounts, which BSCpro's own pricing page
+// describes as self-scoped) is not something we can rely on for every account tier.
+async function scrapeGxForUser(email, password, name) {
   const chromium = await getChromium()
   const browser = await playwright.launch({
     args: chromium.args,
@@ -110,9 +160,11 @@ async function scrapeGxForUser(email, password) {
       return grid.records.map(r => ({
         points: parseFloat(r.base_written_points || 0) || 0,
         cb_date: r.cb_date || '',
+        agents: r.agents || r.agent_name || r.agent || null,
       }))
     })
-    const points = prodRecords
+    const myProdRecords = prodRecords.filter(r => extractAgentNames(r.agents).some(a => nameMatches(a, name)))
+    const points = myProdRecords
       .filter(r => !(r.cb_date && String(r.cb_date).trim() !== '' && String(r.cb_date).trim() !== '0000-00-00'))
       .reduce((sum, r) => sum + r.points, 0)
 
@@ -138,13 +190,14 @@ async function scrapeGxForUser(email, password) {
     const recruitRecords = await page.evaluate(() => {
       const grid = window.w2ui && window.w2ui['grid']
       if (!grid || !grid.records) return []
-      return grid.records.map(r => ({ start_date: r.start_date || '' }))
+      return grid.records.map(r => ({ start_date: r.start_date || '', recruiter: r.recruiter || null }))
     })
     const ymSlash = `${year}/${pad2(monthNum)}`
     const ymDash = `${year}-${pad2(monthNum)}`
     const recruits = recruitRecords.filter(r => {
       const d = String(r.start_date || '')
-      return d.startsWith(ymSlash) || d.startsWith(ymDash)
+      const inMonth = d.startsWith(ymSlash) || d.startsWith(ymDash)
+      return inMonth && nameMatches(extractRecruiterName(r.recruiter), name)
     }).length
 
     return { points, recruits }
@@ -163,6 +216,9 @@ async function handleSync(event) {
   try { body = JSON.parse(event.body || '{}') } catch {}
   const { bscproEmail, bscproPassword } = body
 
+  if (!name.trim()) {
+    return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: false, error: 'Your profile has no name set — add your full name in Profile Settings before syncing.' }) }
+  }
   if (!bscproEmail || !bscproPassword) {
     return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: false, error: 'Add your BSCpro email and password in Profile Settings before syncing.' }) }
   }
@@ -171,7 +227,7 @@ async function handleSync(event) {
   }
 
   try {
-    const { points, recruits } = await scrapeGxForUser(bscproEmail, bscproPassword)
+    const { points, recruits } = await scrapeGxForUser(bscproEmail, bscproPassword, name)
     const qualified = recruits >= GX_RECRUIT_GOAL && points >= GX_POINTS_GOAL
     const entry = {
       name,
@@ -180,11 +236,20 @@ async function handleSync(event) {
       qualified,
       needR: Math.max(0, GX_RECRUIT_GOAL - recruits),
       needP: Math.max(0, GX_POINTS_GOAL - points),
+      scope: 'personal',
     }
 
-    // Upsert this person's personal ('base') entry — same gx_cache table/shape the
-    // local push_gx_to_supabase.mjs bulk push uses, so gx-stats/gx-leaderboard reads
-    // don't need to know whether a row came from a personal sync or the admin scrape.
+    // Tagged 'personal' (not 'base') so this NEVER lands in gx-leaderboard.js's
+    // team-board scopes (base/superbase/hierarchy). Two reasons: (1) a lone
+    // personal-sync row would become the newest updated_at for that scope,
+    // and gx-leaderboard's freshness window (rows within 10min of the scope's
+    // own max timestamp) would then knock every legitimately bulk-pushed agent
+    // off the board — confirmed live 7/15/26, a single test sync wiped the
+    // entire Base board down to just that one synced name. (2) team leaders
+    // (Olivia/Tracy) are deliberately excluded from their own team's GX board
+    // (see EXCLUDED set in scrape_gx_jul2026_net.js) but still need their
+    // personal sync to populate the "My GX" widget via gx-stats GET, which
+    // reads by name across all scopes regardless of tag.
     await fetch(`${SUPABASE_URL}/rest/v1/gx_cache`, {
       method: 'POST',
       headers: {

@@ -7,6 +7,12 @@ const CORS = {
 const PARTNER_GOAL = 3
 const POINTS_GOAL  = 15000
 
+// Account owners/leaders are deliberately excluded from their own team's GX board —
+// see the same EXCLUDED set in scrape_gx_jul2026_net.js's rankAgents(). Enforced here
+// too (not just at bulk-push time) since any write path into gx_cache — including a
+// personal "Sync GX" — should never be able to surface these names on the team board.
+const EXCLUDED = new Set(['OLIVIA SULA-WANG', 'TRACY SULA-WANG'])
+
 // scope_filter checkbox state -> which precomputed BSCpro scope dataset to read.
 // 'base'+'superbase' together resolves to 'hierarchy' — matches BSCpro's own
 // combined/deduped scope_filter view, not a client-side sum of the two (points
@@ -54,7 +60,7 @@ const handler = async (event) => {
     for (const r of fresh) {
       const d = r.data || {}
       const name = (d.name || r.name || '').replace(/^\w+::/, '').replace(/\s*\([A-Z0-9]+\)$/, '').trim()
-      if (!name) continue
+      if (!name || EXCLUDED.has(name.toUpperCase())) continue
       const cur = byName[name] || { partners: 0, points: 0, qualified: false, updatedAt: r.updated_at }
       byName[name] = {
         partners:  Math.max(cur.partners, d.recruits || 0),
