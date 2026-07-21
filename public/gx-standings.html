@@ -199,6 +199,7 @@ body::after  { content: ''; position: fixed; inset: 0; background: radial-gradie
   <div style="display:flex;align-items:center;gap:14px;position:relative;z-index:1;">
     <div class="dr-date-chip" id="dateChip"></div>
     <div class="gx-scope-group" id="scopeGroup"></div>
+    <button class="dr-print-btn" id="copyBtn" title="Copy the full standings list as text">⧉ COPY LIST</button>
     <button class="dr-print-btn" id="themeBtn">🌙 DARK</button>
     <div class="gx-zoom-group">
       <button class="dr-print-btn gx-zoom-btn" id="zoomOut" title="Zoom out">−</button>
@@ -308,12 +309,7 @@ function render() {
   document.getElementById('asOfDate').textContent = asOfDate;
   document.getElementById('freshness').textContent = 'Last GX sync: ' + now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ' — net of chargebacks · taproot verified (Odalys Mendez +1 via Crystal Bonham) · self-client checked: none in July';
 
-  var agents = DATA[key].slice().sort(function (a, b) {
-    var aQ = a.partners >= GOAL_PARTNERS && a.points >= GOAL_POINTS;
-    var bQ = b.partners >= GOAL_PARTNERS && b.points >= GOAL_POINTS;
-    if (aQ !== bQ) return aQ ? -1 : 1;
-    return scoreOf(a) - scoreOf(b);
-  }).filter(function (a) { return a.partners > 0 || a.points > 0; });
+  var agents = sortedAgents(key);
 
   var board = document.getElementById('board');
   board.innerHTML = agents.map(function (a, i) {
@@ -349,6 +345,53 @@ function render() {
     });
   });
 }
+
+function sortedAgents(key) {
+  return DATA[key].slice().sort(function (a, b) {
+    var aQ = a.partners >= GOAL_PARTNERS && a.points >= GOAL_POINTS;
+    var bQ = b.partners >= GOAL_PARTNERS && b.points >= GOAL_POINTS;
+    if (aQ !== bQ) return aQ ? -1 : 1;
+    return scoreOf(a) - scoreOf(b);
+  }).filter(function (a) { return a.partners > 0 || a.points > 0; });
+}
+
+function buildCopyText() {
+  var key = resolvedKey();
+  var scopeLabel = { base: 'BASESHOP', superbase: 'SUPERBASE', hierarchy: 'BASESHOP + SUPERBASE' }[key];
+  var lines = [];
+  lines.push('TEAM RISE — GX STANDINGS');
+  lines.push('July 2026 · thru Jul 20 · Goal: 3 Business Partners + 15,000 Points');
+  lines.push('');
+  lines.push(scopeLabel);
+  sortedAgents(key).forEach(function (a, i) {
+    var qualified = a.partners >= GOAL_PARTNERS && a.points >= GOAL_POINTS;
+    var tag = qualified ? ' — QUALIFIED!' : '';
+    var note = a.note ? ' (' + a.note + ')' : '';
+    lines.push((i + 1) + '. ' + a.name + note + ' — Partners ' + a.partners + '/' + GOAL_PARTNERS + ' · Points ' + fmt(a.points) + '/' + fmt(GOAL_POINTS) + tag);
+  });
+  return lines.join('\n');
+}
+
+document.getElementById('copyBtn').addEventListener('click', function () {
+  var btn = this;
+  var text = buildCopyText();
+  function flash(ok) {
+    btn.textContent = ok ? '✓ COPIED' : '✗ COPY FAILED';
+    setTimeout(function () { btn.textContent = '⧉ COPY LIST'; }, 1600);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { flash(true); }, function () { flash(false); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    flash(ok);
+  }
+});
 
 document.getElementById('zoomOut').addEventListener('click', function () { zoom = Math.max(50, zoom - 10); applyZoom(); });
 document.getElementById('zoomIn').addEventListener('click', function () { zoom = Math.min(200, zoom + 10); applyZoom(); });
