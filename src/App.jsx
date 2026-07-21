@@ -19,6 +19,7 @@ const QUICK_ACTIONS = [
   { icon: '👤', label: 'Personal Prospects',    view: 'prospects', prompt: 'Run the Follow-Up Agent for my personal prospect sheet. Check who needs follow-up today.' },
   { icon: '👥', label: 'Team Prospects',        prompt: 'Run the Follow-Up Agent for the team prospect pipeline. Show who needs follow-up across the team.' },
   { icon: '📈', label: 'GX Tracker',            view: 'gx-tracker', prompt: 'Run the Performance Agent to pull the current GX tracker and show where we stand.' },
+  { icon: '🏅', label: 'GX Standings',          href: '/gx-standings.html' },
   { icon: '🏆', label: 'Monthly Contest',       prompt: 'Run the Performance Agent to show current monthly contest standings and progress.' },
   { icon: '🎉', label: 'Recognition',           view: 'recognition', prompt: "Run the Recognition Agent to pull this week's recognition milestones and shoutouts." },
   { icon: '🌡️', label: 'Big Event',             view: 'big-event', prompt: 'Show the Big Event registration thermometer for the next event.' },
@@ -276,7 +277,7 @@ export default function App() {
     ? [
         ...profile.custom_quick_actions.map(a => {
           const def = QUICK_ACTIONS.find(q => q.label === a.label)
-          return def ? { ...def, ...a, endpoint: def.endpoint, view: def.view } : a
+          return def ? { ...def, ...a, endpoint: def.endpoint, view: def.view, href: def.href } : a
         }),
         ...QUICK_ACTIONS.filter(q => !profile.custom_quick_actions.some(a => a.label === q.label)),
       ]
@@ -569,11 +570,11 @@ export default function App() {
               {activeQuickActions.map((a, i) => (
                 <button
                   key={i}
-                  className={`pill${!a.view ? ' pill--locked' : ''}`}
+                  className={`pill${!a.view && !a.href ? ' pill--locked' : ''}`}
                   style={{ animationDelay: `${0.03 + i * 0.04}s` }}
-                  disabled={!a.view}
-                  title={!a.view ? 'Coming soon' : ''}
-                  onClick={() => a.view && setView(a.view)}
+                  disabled={!a.view && !a.href}
+                  title={!a.view && !a.href ? 'Coming soon' : ''}
+                  onClick={() => a.href ? window.open(a.href, '_blank', 'noopener') : a.view && setView(a.view)}
                 >
                   <span className="em">{a.icon}</span> {a.label}
                 </button>
