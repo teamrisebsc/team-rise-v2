@@ -159,14 +159,38 @@ async function scrapeGxForUser(email, password, name) {
       if (!grid || !grid.records) return []
       return grid.records.map(r => ({
         points: parseFloat(r.base_written_points || 0) || 0,
+        // Full policy points, identical across scopes — base_written_points is a
+        // scope-blended number that under-credits split/trainee policies.
+        actual_point: parseFloat(r.actual_point || 0) || 0,
         cb_date: r.cb_date || '',
         agents: r.agents || r.agent_name || r.agent || null,
+        roles: Array.isArray(r.agents)
+          ? r.agents
+              .filter(a => a && typeof a === 'object')
+              .map(a => ({
+                name: (a.name || a.agent_name || '').trim(),
+                agent_type: a.agent_type || '',
+                split_percentage: parseFloat(a.split_percentage || 0) || 0,
+              }))
+              .filter(a => a.name)
+          : [],
       }))
     })
-    const myProdRecords = prodRecords.filter(r => extractAgentNames(r.agents).some(a => nameMatches(a, name)))
-    const points = myProdRecords
+    // GX attribution rule: trainee gets 100% of the policy's actual points;
+    // writing/split agents get their split_percentage of the actual points.
+    // Falls back to full base_written_points only when roles aren't exposed.
+    const points = prodRecords
       .filter(r => !(r.cb_date && String(r.cb_date).trim() !== '' && String(r.cb_date).trim() !== '0000-00-00'))
-      .reduce((sum, r) => sum + r.points, 0)
+      .reduce((sum, r) => {
+        if (r.roles.length > 0 && r.actual_point > 0) {
+          const mine = r.roles.find(a => nameMatches(a.name, name))
+          if (!mine) return sum
+          return sum + (mine.agent_type === 'trainee'
+            ? r.actual_point
+            : r.actual_point * (mine.split_percentage / 100))
+        }
+        return extractAgentNames(r.agents).some(a => nameMatches(a, name)) ? sum + r.points : sum
+      }, 0)
 
     // --- Recruits (active + inactive), current month start dates ---
     await page.goto('https://bscpro.com/speedfilter_new', { waitUntil: 'domcontentloaded', timeout: 30000 })
