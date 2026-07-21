@@ -242,12 +242,13 @@ var GOAL_PARTNERS = 3, GOAL_POINTS = 15000;
 
 var DATA = {
   base: [
+    {"name":"Emily Feliton","partners":1,"points":7949},
     {"name":"Dee Dee Langlois Gunn","partners":2,"points":939},
     {"name":"Odalys Mendez","partners":2,"points":939,"note":"+1 taproot"},
     {"name":"David Groode","partners":2,"points":0},
     {"name":"Kimberly Bowen","partners":2,"points":0},
     {"name":"David Lewis Bradley","partners":0,"points":9291},
-    {"name":"Emily Feliton","partners":1,"points":3003},
+    {"name":"Lorena Rodriguez","partners":0,"points":5531},
     {"name":"Skye Singleton","partners":1,"points":22},
     {"name":"Crystal Bonham","partners":1,"points":0},
     {"name":"Paola Alarcon","partners":1,"points":0},
@@ -257,9 +258,8 @@ var DATA = {
     {"name":"Skyler Saulovich","partners":1,"points":0},
     {"name":"Lynn Hicks","partners":1,"points":0},
     {"name":"Edgar Palencia","partners":1,"points":0},
-    {"name":"Debra Long","partners":0,"points":1145},
-    {"name":"Maiddo Esho","partners":0,"points":1145},
-    {"name":"Lorena Rodriguez","partners":0,"points":585},
+    {"name":"Debra Long","partners":0,"points":1325},
+    {"name":"Maiddo Esho","partners":0,"points":1325},
     {"name":"Bertha Huerta","partners":0,"points":585},
     {"name":"Murphy Shumpert","partners":0,"points":558}
   ],
@@ -299,7 +299,7 @@ function render() {
   var heroTitle = { base: 'Baseshop', superbase: 'Superbase', hierarchy: 'Hierarchy' }[key];
   document.getElementById('heroTitle').textContent = heroTitle;
 
-  var now = new Date('2026-07-20T22:58:00');
+  var now = new Date('2026-07-20T23:58:00');
   var monthName = now.toLocaleDateString('en-US', { month: 'long' });
   document.getElementById('heroSub').textContent = 'GX TRACKER · ' + monthName.toUpperCase() + ' ' + now.getFullYear() + ' · MTD';
   var endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
