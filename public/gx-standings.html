@@ -371,7 +371,15 @@ document.getElementById('copyBtn').addEventListener('click', function () {
   viewport.style.zoom = 1;
   var target = document.querySelector('.lic-page');
   var bg = getComputedStyle(document.body).backgroundColor;
-  html2canvas(target, { backgroundColor: bg, scale: 2, useCORS: true })
+  html2canvas(target, {
+    backgroundColor: bg, scale: 2, useCORS: true,
+    // html2canvas can't createPattern a 0-width gradient — hide empty bars in the clone
+    onclone: function (doc) {
+      doc.querySelectorAll('.gx-bar-fill').forEach(function (el) {
+        if (!parseFloat(el.style.width)) el.style.display = 'none';
+      });
+    }
+  })
     .then(function (canvas) {
       viewport.style.zoom = savedZoom;
       return new Promise(function (resolve, reject) {
