@@ -373,10 +373,12 @@ document.getElementById('copyBtn').addEventListener('click', function () {
   var bg = getComputedStyle(document.body).backgroundColor;
   html2canvas(target, {
     backgroundColor: bg, scale: 2, useCORS: true,
-    // html2canvas can't createPattern a 0-width gradient — hide empty bars in the clone
+    // html2canvas can't createPattern gradient fills at tiny/zero widths, so in
+    // the capture clone the bars go solid and sub-pixel bars are dropped.
     onclone: function (doc) {
       doc.querySelectorAll('.gx-bar-fill').forEach(function (el) {
-        if (!parseFloat(el.style.width)) el.style.display = 'none';
+        el.style.background = el.classList.contains('full') ? '#4ade80' : '#008080';
+        if (parseFloat(el.style.width) < 0.5) el.style.display = 'none';
       });
     }
   })
