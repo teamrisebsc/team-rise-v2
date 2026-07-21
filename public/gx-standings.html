@@ -1,0 +1,370 @@
+<title>GX Tracker — Team RISE</title>
+<style>
+:root {
+  --bg: #040f0f;
+  --bg-card: #071818;
+  --bg-card-hover: #0b2020;
+  --teal: #005f5f;
+  --teal-bright: #008080;
+  --teal-mid: #006a6a;
+  --teal-dim: rgba(0,100,100,0.25);
+  --teal-border: rgba(0,120,120,0.55);
+  --gold: #c9a84c;
+  --text: #e8f8f8;
+  --text-muted: #5a8888;
+  --border: rgba(0,120,120,0.2);
+  --mono: "Courier New", Courier, monospace;
+  --accent: #008B8B;
+  --green-bright: #4ade80;
+}
+:root[data-theme="dark"] {
+  --bg: #040f0f; --bg-card: #071818; --bg-card-hover: #0b2020;
+  --teal: #005f5f; --teal-bright: #008080; --teal-mid: #006a6a;
+  --teal-dim: rgba(0,100,100,0.25); --teal-border: rgba(0,120,120,0.55);
+  --gold: #c9a84c; --text: #e8f8f8; --text-muted: #5a8888; --border: rgba(0,120,120,0.2);
+  --mono: "Courier New", Courier, monospace; --accent: #008B8B; --green-bright: #4ade80;
+}
+:root[data-theme="light"] {
+  --bg: #4d9898; --bg-card: #f2fafa; --bg-card-hover: #dff0f0;
+  --teal: #2a5f6d; --teal-bright: #356f7d; --teal-mid: #306875;
+  --teal-dim: rgba(53,111,125,0.1); --teal-border: rgba(53,111,125,0.32);
+  --gold: #a07820; --text: #0f2830; --text-muted: #4a6e78; --border: rgba(53,111,125,0.16);
+  --mono: "Courier New", Courier, monospace; --accent: #356f7d; --green-bright: #16a34a;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #4d9898; --bg-card: #f2fafa; --bg-card-hover: #dff0f0;
+    --teal: #2a5f6d; --teal-bright: #356f7d; --teal-mid: #306875;
+    --teal-dim: rgba(53,111,125,0.1); --teal-border: rgba(53,111,125,0.32);
+    --gold: #a07820; --text: #0f2830; --text-muted: #4a6e78; --border: rgba(53,111,125,0.16);
+    --green-bright: #16a34a;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0,160,160,0.2) 0%, transparent 65%), radial-gradient(circle at 1px 1px, rgba(0,180,180,0.32) 1.2px, transparent 0);
+  background-size: 100% 100%, 26px 26px;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.025) 3px, rgba(0,0,0,0.025) 4px); pointer-events: none; z-index: 9999; }
+body::after  { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%); pointer-events: none; z-index: 9998; }
+
+.dr-header {
+  position: sticky; top: 0; z-index: 200;
+  background: linear-gradient(135deg, rgba(0,80,80,0.7) 0%, rgba(4,15,15,0.97) 60%);
+  backdrop-filter: blur(16px);
+  border-bottom: 2px solid rgba(0,120,120,0.6);
+  box-shadow: 0 0 60px rgba(0,100,100,0.25);
+  padding: 0 24px; height: 46px;
+  display: flex; align-items: center; justify-content: space-between;
+  overflow: hidden;
+}
+.dr-sweep {
+  position: absolute; top: 0; left: -140px; bottom: 0; width: 140px;
+  background: linear-gradient(90deg, transparent, rgba(0,220,220,0.35), rgba(0,200,200,0.1), transparent);
+  animation: dr-sweep 1.5s cubic-bezier(0.25, 0, 0.4, 1) 0.1s forwards;
+  pointer-events: none;
+}
+@keyframes dr-sweep { from { left: -140px; } to { left: 110%; } }
+
+.brand { display: flex; flex-direction: column; gap: 2px; }
+.brand-name { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--teal-bright); letter-spacing: 0.18em; text-transform: uppercase; text-shadow: 0 0 30px rgba(0,128,128,0.7); }
+.brand-sub { font-size: 10px; letter-spacing: 0.35em; text-transform: uppercase; color: #ffffff; }
+
+.dr-date-chip {
+  font-family: var(--mono); font-size: 12px; color: rgba(0,200,200,0.75);
+  background: var(--teal-dim); border: 1px solid var(--teal-border);
+  border-radius: 20px; padding: 4px 14px; letter-spacing: 0.08em;
+}
+.dr-print-btn {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--teal-bright); background: var(--teal-dim);
+  border: 1px solid var(--teal-border); border-radius: 6px;
+  padding: 6px 16px; cursor: pointer; transition: all 0.2s;
+}
+.dr-print-btn:hover { background: rgba(0,120,120,0.35); }
+.dr-print-btn:disabled { opacity: 0.55; cursor: default; }
+
+.gx-scope-group { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.gx-scope-chip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px 6px 9px; border-radius: 20px;
+  border: 1px solid var(--teal-border); background: var(--teal-dim); cursor: pointer; user-select: none;
+  font-size: 12px; font-weight: 600; color: var(--text-muted); transition: background 0.15s ease, color 0.15s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.gx-scope-chip .box { width: 13px; height: 13px; border-radius: 4px; border: 1.5px solid var(--teal-border); flex-shrink: 0; }
+.gx-scope-chip.active { background: var(--teal-bright); border-color: var(--teal-bright); color: #04201f; }
+.gx-scope-chip.active .box { background: rgba(255,255,255,0.35); border-color: transparent; }
+
+.gx-zoom-group { display: flex; align-items: center; gap: 4px; }
+.gx-zoom-btn { padding: 6px 12px; font-size: 13px; line-height: 1; }
+.gx-zoom-pct { padding: 6px 10px; min-width: 52px; cursor: pointer; }
+
+.dr-freshness {
+  max-width: 1160px; margin: 14px auto 0; padding: 7px 16px;
+  font-family: var(--mono); font-size: 11px; color: var(--text-muted);
+  background: rgba(0,100,100,0.08); border: 1px solid rgba(0,120,120,0.2); border-radius: 7px;
+}
+
+.lic-page { max-width: 1160px; margin: 18px auto 40px; padding: 0 16px; }
+
+.gx-hero {
+  position: relative; overflow: hidden; border-radius: 16px;
+  padding: 22px 24px 20px;
+  background: linear-gradient(150deg, #04201f 0%, #0a3a38 55%, var(--teal-bright) 140%);
+  box-shadow: 0 8px 28px -14px rgba(0,0,0,0.5);
+}
+.gx-hero::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 140% at 8% -10%, rgba(255,255,255,0.14) 0%, transparent 55%);
+}
+.gx-hero-title { position: relative; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.01em; color: #fff; text-wrap: balance; text-align: center; }
+.gx-hero-title .accent { color: #7fe9df; }
+.gx-hero-sub { position: relative; font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255,255,255,0.62); margin-top: 6px; text-align: center; }
+.gx-hero-rule { position: relative; height: 1px; margin: 16px 0; background: linear-gradient(90deg, rgba(255,255,255,0.32), transparent); }
+.gx-hero-stats { position: relative; display: flex; gap: 36px; flex-wrap: wrap; justify-content: center; }
+.gx-hero-num { font-size: 30px; font-weight: 800; color: #fff; line-height: 1; font-variant-numeric: tabular-nums; text-align: center; }
+.gx-hero-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.6); margin-top: 5px; text-align: center; }
+
+.gx-board { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+@media (max-width: 640px) { .gx-board { grid-template-columns: 1fr; } }
+.gx-card { background: var(--bg-card); border: 1px solid var(--teal-border); border-radius: 11px; padding: 13px 15px 14px; }
+.gx-card.hi { border-color: var(--teal-bright); border-width: 1.5px; }
+.gx-card-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.gx-card-rank { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text-muted); width: 15px; flex-shrink: 0; }
+.gx-card-name { font-size: 18px; font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.gx-card-badge { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #04201f; background: var(--teal-bright); padding: 3px 7px; border-radius: 5px; flex-shrink: 0; }
+.gx-card-note { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold); flex-shrink: 0; }
+.gx-stat-row { margin-bottom: 8px; }
+.gx-stat-row:last-child { margin-bottom: 0; }
+.gx-stat-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.gx-stat-label { font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+.gx-stat-value { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.gx-stat-value b { color: var(--text); }
+.gx-stat-need { font-size: 10px; color: var(--text-muted); }
+.gx-stat-need.met { color: var(--green-bright); font-weight: 700; }
+.gx-bar-track { height: 6px; border-radius: 4px; background: rgba(0,0,0,0.18); overflow: hidden; }
+.gx-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--teal), var(--teal-bright)); }
+.gx-bar-fill.full { background: linear-gradient(90deg, #16a34a, var(--green-bright)); }
+.gx-board-foot { margin-top: 16px; text-align: center; font-family: var(--mono); font-size: 10.5px; color: var(--text-muted); }
+
+.status-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 28px; background: linear-gradient(135deg, rgba(0,60,60,0.9) 0%, rgba(4,15,15,0.97) 100%); border-top: 2px solid rgba(0,120,120,0.4); backdrop-filter: blur(16px); display: flex; align-items: center; padding: 0 24px; gap: 24px; z-index: 200; }
+.sb-item { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: rgba(0,160,160,0.6); }
+.sb-divider { width: 1px; height: 16px; background: rgba(0,120,120,0.25); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-green { background: #22c55e; box-shadow: 0 0 8px #22c55e; animation: blink 3s ease-in-out infinite; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+:root[data-theme="light"] .dr-header { background: linear-gradient(135deg, rgba(53,111,125,0.14) 0%, rgba(240,248,251,0.98) 60%); border-bottom: 2px solid rgba(53,111,125,0.38); box-shadow: none; }
+:root[data-theme="light"] .brand-sub { color: #ffffff; }
+:root[data-theme="light"] .dr-freshness { background: rgba(53,111,125,0.06); border-color: rgba(53,111,125,0.2); }
+:root[data-theme="light"] .dr-date-chip { background: rgba(53,111,125,0.1); border-color: rgba(53,111,125,0.32); color: #2a5f6d; }
+:root[data-theme="light"] .gx-card { background: #ffffff; border-color: rgba(53,111,125,0.2); }
+:root[data-theme="light"] .gx-scope-chip { background: rgba(53,111,125,0.06); border-color: rgba(53,111,125,0.22); }
+:root[data-theme="light"] .gx-scope-chip.active { background: var(--teal-bright); color: #fff; }
+:root[data-theme="light"] .gx-bar-track { background: rgba(53,111,125,0.12); }
+:root[data-theme="light"] .status-bar { background: linear-gradient(135deg, rgba(53,111,125,0.1) 0%, rgba(240,248,251,0.98) 100%); border-top: 2px solid rgba(53,111,125,0.28); }
+:root[data-theme="light"] .sb-item { color: var(--teal-mid); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .dr-header { background: linear-gradient(135deg, rgba(53,111,125,0.14) 0%, rgba(240,248,251,0.98) 60%); border-bottom: 2px solid rgba(53,111,125,0.38); box-shadow: none; }
+  :root:not([data-theme="dark"]) .brand-sub { color: #ffffff; }
+  :root:not([data-theme="dark"]) .dr-freshness { background: rgba(53,111,125,0.06); border-color: rgba(53,111,125,0.2); }
+  :root:not([data-theme="dark"]) .dr-date-chip { background: rgba(53,111,125,0.1); border-color: rgba(53,111,125,0.32); color: #2a5f6d; }
+  :root:not([data-theme="dark"]) .gx-card { background: #ffffff; border-color: rgba(53,111,125,0.2); }
+  :root:not([data-theme="dark"]) .gx-scope-chip { background: rgba(53,111,125,0.06); border-color: rgba(53,111,125,0.22); }
+  :root:not([data-theme="dark"]) .gx-scope-chip.active { background: var(--teal-bright); color: #fff; }
+  :root:not([data-theme="dark"]) .gx-bar-track { background: rgba(53,111,125,0.12); }
+  :root:not([data-theme="dark"]) .status-bar { background: linear-gradient(135deg, rgba(53,111,125,0.1) 0%, rgba(240,248,251,0.98) 100%); border-top: 2px solid rgba(53,111,125,0.28); }
+  :root:not([data-theme="dark"]) .sb-item { color: var(--teal-mid); }
+}
+
+@media (max-width: 680px) { .brand-sub { display: none; } .dr-header { padding: 0 14px; } }
+</style>
+
+<header class="dr-header">
+  <div class="dr-sweep"></div>
+  <div style="display:flex;align-items:center;gap:14px;position:relative;z-index:1;">
+    <div class="brand">
+      <div class="brand-name">TEAM RISE</div>
+      <div class="brand-sub" style="letter-spacing:0.38em;">GX TRACKER</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;position:relative;z-index:1;">
+    <div class="dr-date-chip" id="dateChip"></div>
+    <div class="gx-scope-group" id="scopeGroup"></div>
+    <button class="dr-print-btn" id="themeBtn">🌙 DARK</button>
+    <div class="gx-zoom-group">
+      <button class="dr-print-btn gx-zoom-btn" id="zoomOut" title="Zoom out">−</button>
+      <button class="dr-print-btn gx-zoom-pct" id="zoomPct" title="Reset zoom">100%</button>
+      <button class="dr-print-btn gx-zoom-btn" id="zoomIn" title="Zoom in">+</button>
+    </div>
+  </div>
+</header>
+
+<div class="dr-freshness" id="freshness"></div>
+
+<div style="zoom:1;" id="zoomViewport">
+  <div class="lic-page">
+    <div class="gx-hero">
+      <h1 class="gx-hero-title">RISE <span class="accent" id="heroTitle">Baseshop</span></h1>
+      <div class="gx-hero-sub" id="heroSub"></div>
+      <div class="gx-hero-rule"></div>
+      <div class="gx-hero-stats">
+        <div><div class="gx-hero-num">3</div><div class="gx-hero-label">Business Partners</div></div>
+        <div><div class="gx-hero-num">15,000</div><div class="gx-hero-label">Personal Points</div></div>
+        <div><div class="gx-hero-num" id="daysLeft">—</div><div class="gx-hero-label">Days Left</div></div>
+      </div>
+    </div>
+
+    <div class="gx-board" id="board"></div>
+    <div class="gx-board-foot" id="boardFoot"></div>
+  </div>
+</div>
+
+<div class="status-bar">
+  <div class="dot dot-green"></div>
+  <span class="sb-item">TEAM RISE AI SYSTEM</span>
+  <div class="sb-divider"></div>
+  <span class="sb-item">GX Tracker &nbsp;·&nbsp; <span id="asOfDate"></span></span>
+</div>
+
+<script>
+var GOAL_PARTNERS = 3, GOAL_POINTS = 15000;
+
+var DATA = {
+  base: [
+    {"name":"Dee Dee Langlois Gunn","partners":2,"points":939},
+    {"name":"Odalys Mendez","partners":2,"points":939,"note":"+1 taproot"},
+    {"name":"David Groode","partners":2,"points":0},
+    {"name":"Kimberly Bowen","partners":2,"points":0},
+    {"name":"David Lewis Bradley","partners":0,"points":9291},
+    {"name":"Emily Feliton","partners":1,"points":3003},
+    {"name":"Skye Singleton","partners":1,"points":22},
+    {"name":"Crystal Bonham","partners":1,"points":0},
+    {"name":"Paola Alarcon","partners":1,"points":0},
+    {"name":"Gabriela Rivera","partners":1,"points":0},
+    {"name":"Kayellen Dunston Jefferson","partners":1,"points":0},
+    {"name":"Stacie Grush","partners":1,"points":0},
+    {"name":"Skyler Saulovich","partners":1,"points":0},
+    {"name":"Lynn Hicks","partners":1,"points":0},
+    {"name":"Edgar Palencia","partners":1,"points":0},
+    {"name":"Debra Long","partners":0,"points":1145},
+    {"name":"Maiddo Esho","partners":0,"points":1145},
+    {"name":"Lorena Rodriguez","partners":0,"points":585},
+    {"name":"Bertha Huerta","partners":0,"points":585},
+    {"name":"Murphy Shumpert","partners":0,"points":558}
+  ],
+  superbase: [
+    {"name":"Cain Garcia","partners":2,"points":0},
+    {"name":"Michele and Dana Mcgann","partners":1,"points":3240},
+    {"name":"Faith Giurlani","partners":1,"points":2025},
+    {"name":"Gonzalo Verduzco","partners":1,"points":1157},
+    {"name":"Aurora Tapia Carretero","partners":1,"points":0},
+    {"name":"Jimmy Lieu","partners":1,"points":0},
+    {"name":"Clarece Weinraub","partners":0,"points":3850},
+    {"name":"Julie Heard","partners":0,"points":2109},
+    {"name":"Amy Bailey","partners":0,"points":1203},
+    {"name":"Genevieve Bautista","partners":0,"points":1157},
+    {"name":"Kaili Kimura","partners":0,"points":744}
+  ]
+};
+DATA.hierarchy = DATA.base.concat(DATA.superbase);
+
+var scope = new Set(['base']);
+var zoom = 100;
+
+function resolvedKey() {
+  if (scope.has('base') && scope.has('superbase')) return 'hierarchy';
+  if (scope.has('superbase')) return 'superbase';
+  return 'base';
+}
+
+function fmt(n) { return Math.round(n || 0).toLocaleString('en-US'); }
+
+function scoreOf(a) {
+  return Math.max(0, GOAL_PARTNERS - a.partners) / GOAL_PARTNERS + Math.max(0, GOAL_POINTS - a.points) / GOAL_POINTS;
+}
+
+function render() {
+  var key = resolvedKey();
+  var heroTitle = { base: 'Baseshop', superbase: 'Superbase', hierarchy: 'Hierarchy' }[key];
+  document.getElementById('heroTitle').textContent = heroTitle;
+
+  var now = new Date('2026-07-20T22:58:00');
+  var monthName = now.toLocaleDateString('en-US', { month: 'long' });
+  document.getElementById('heroSub').textContent = 'GX TRACKER · ' + monthName.toUpperCase() + ' ' + now.getFullYear() + ' · MTD';
+  var endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  var daysLeft = Math.max(0, Math.ceil((endOfMonth - now) / 86400000));
+  document.getElementById('daysLeft').textContent = daysLeft;
+  var asOfDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  document.getElementById('dateChip').textContent = asOfDate.toUpperCase();
+  document.getElementById('asOfDate').textContent = asOfDate;
+  document.getElementById('freshness').textContent = 'Last GX sync: ' + now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ' — net of chargebacks · taproot verified (Odalys Mendez +1 via Crystal Bonham) · self-client checked: none in July';
+
+  var agents = DATA[key].slice().sort(function (a, b) {
+    var aQ = a.partners >= GOAL_PARTNERS && a.points >= GOAL_POINTS;
+    var bQ = b.partners >= GOAL_PARTNERS && b.points >= GOAL_POINTS;
+    if (aQ !== bQ) return aQ ? -1 : 1;
+    return scoreOf(a) - scoreOf(b);
+  }).filter(function (a) { return a.partners > 0 || a.points > 0; });
+
+  var board = document.getElementById('board');
+  board.innerHTML = agents.map(function (a, i) {
+    var rMet = a.partners >= GOAL_PARTNERS, pMet = a.points >= GOAL_POINTS;
+    var qualified = rMet && pMet;
+    var rPct = Math.min(100, (a.partners / GOAL_PARTNERS) * 100);
+    var pPct = Math.min(100, (a.points / GOAL_POINTS) * 100);
+    var badge = qualified ? '<span class="gx-card-badge">Qualified</span>' : (rMet ? '<span class="gx-card-badge">Partners ✓</span>' : '');
+    var note = a.note ? '<span class="gx-card-note">' + a.note + '</span>' : '';
+    return '<div class="gx-card' + (rMet || qualified ? ' hi' : '') + '">' +
+      '<div class="gx-card-top"><span class="gx-card-rank">' + (i + 1) + '</span><span class="gx-card-name" title="' + a.name + '">' + a.name + '</span>' + note + badge + '</div>' +
+      '<div class="gx-stat-row"><div class="gx-stat-head"><span class="gx-stat-label">Partners</span><span class="gx-stat-value"><b>' + a.partners + '</b> / ' + GOAL_PARTNERS + '</span></div>' +
+        '<div class="gx-bar-track"><div class="gx-bar-fill' + (rMet ? ' full' : '') + '" style="width:' + rPct + '%"></div></div>' +
+        '<div class="gx-stat-need' + (rMet ? ' met' : '') + '">' + (rMet ? 'goal met!' : 'needs ' + (GOAL_PARTNERS - a.partners)) + '</div></div>' +
+      '<div class="gx-stat-row"><div class="gx-stat-head"><span class="gx-stat-label">Points</span><span class="gx-stat-value"><b>' + fmt(a.points) + '</b> / ' + fmt(GOAL_POINTS) + '</span></div>' +
+        '<div class="gx-bar-track"><div class="gx-bar-fill' + (pMet ? ' full' : '') + '" style="width:' + pPct + '%"></div></div>' +
+        '<div class="gx-stat-need' + (pMet ? ' met' : '') + '">' + (pMet ? 'goal met!' : 'needs $' + fmt(GOAL_POINTS - a.points)) + '</div></div>' +
+      '</div>';
+  }).join('');
+
+  document.getElementById('boardFoot').textContent = 'RISE · ' + now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) + ' · ' + agents.length + ' on the board';
+
+  var scopeGroup = document.getElementById('scopeGroup');
+  scopeGroup.innerHTML = ['base', 'superbase'].map(function (s) {
+    return '<label class="gx-scope-chip' + (scope.has(s) ? ' active' : '') + '" data-scope="' + s + '"><span class="box"></span>' + (s === 'base' ? 'Base' : 'Super Base') + '</label>';
+  }).join('');
+  scopeGroup.querySelectorAll('.gx-scope-chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var s = chip.getAttribute('data-scope');
+      if (scope.has(s)) scope.delete(s); else scope.add(s);
+      if (!scope.has('base') && !scope.has('superbase')) scope.add('base');
+      render();
+    });
+  });
+}
+
+document.getElementById('zoomOut').addEventListener('click', function () { zoom = Math.max(50, zoom - 10); applyZoom(); });
+document.getElementById('zoomIn').addEventListener('click', function () { zoom = Math.min(200, zoom + 10); applyZoom(); });
+document.getElementById('zoomPct').addEventListener('click', function () { zoom = 100; applyZoom(); });
+function applyZoom() {
+  document.getElementById('zoomViewport').style.zoom = zoom / 100;
+  document.getElementById('zoomPct').textContent = zoom + '%';
+}
+
+var isDark = !(document.documentElement.getAttribute('data-theme') === 'light');
+document.getElementById('themeBtn').textContent = isDark ? '☀ LIGHT' : '🌙 DARK';
+document.getElementById('themeBtn').addEventListener('click', function () {
+  isDark = !isDark;
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  this.textContent = isDark ? '☀ LIGHT' : '🌙 DARK';
+});
+
+render();
+</script>
