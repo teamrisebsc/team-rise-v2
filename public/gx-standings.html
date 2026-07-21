@@ -373,9 +373,17 @@ document.getElementById('copyBtn').addEventListener('click', function () {
   var bg = getComputedStyle(document.body).backgroundColor;
   html2canvas(target, {
     backgroundColor: bg, scale: 2, useCORS: true,
-    // html2canvas can't createPattern gradient fills at tiny/zero widths, so in
-    // the capture clone the bars go solid and sub-pixel bars are dropped.
+    // Capture in a wide 3-column desktop layout regardless of the viewer's
+    // screen: messaging apps shrink photos by their LONGEST side, so a tall
+    // 1-2 column strip turns to mush on phones. Screen-shaped stays sharp.
+    windowWidth: 1720, windowHeight: 1000,
     onclone: function (doc) {
+      var pg = doc.querySelector('.lic-page');
+      pg.style.maxWidth = '1640px';
+      pg.style.width = '1640px';
+      doc.getElementById('board').style.gridTemplateColumns = 'repeat(3, 1fr)';
+      // html2canvas can't createPattern gradient fills at tiny/zero widths, so
+      // in the capture clone the bars go solid and sub-pixel bars are dropped.
       doc.querySelectorAll('.gx-bar-fill').forEach(function (el) {
         el.style.background = el.classList.contains('full') ? '#4ade80' : '#008080';
         if (parseFloat(el.style.width) < 0.5) el.style.display = 'none';
