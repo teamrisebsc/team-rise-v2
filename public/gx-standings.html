@@ -199,7 +199,7 @@ body::after  { content: ''; position: fixed; inset: 0; background: radial-gradie
   <div style="display:flex;align-items:center;gap:14px;position:relative;z-index:1;">
     <div class="dr-date-chip" id="dateChip"></div>
     <div class="gx-scope-group" id="scopeGroup"></div>
-    <button class="dr-print-btn" id="copyBtn" title="Copy the full standings list as text">⧉ COPY LIST</button>
+    <button class="dr-print-btn" id="copyBtn" title="Copy the standings board to the clipboard as an image">📸 COPY IMAGE</button>
     <button class="dr-print-btn" id="themeBtn">🌙 DARK</button>
     <div class="gx-zoom-group">
       <button class="dr-print-btn gx-zoom-btn" id="zoomOut" title="Zoom out">−</button>
@@ -236,6 +236,7 @@ body::after  { content: ''; position: fixed; inset: 0; background: radial-gradie
   <span class="sb-item">GX Tracker &nbsp;·&nbsp; <span id="asOfDate"></span></span>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 var GOAL_PARTNERS = 3, GOAL_POINTS = 15000;
 
@@ -355,42 +356,45 @@ function sortedAgents(key) {
   }).filter(function (a) { return a.partners > 0 || a.points > 0; });
 }
 
-function buildCopyText() {
-  var key = resolvedKey();
-  var scopeLabel = { base: 'BASESHOP', superbase: 'SUPERBASE', hierarchy: 'BASESHOP + SUPERBASE' }[key];
-  var lines = [];
-  lines.push('TEAM RISE — GX STANDINGS');
-  lines.push('July 2026 · thru Jul 20 · Goal: 3 Business Partners + 15,000 Points');
-  lines.push('');
-  lines.push(scopeLabel);
-  sortedAgents(key).forEach(function (a, i) {
-    var qualified = a.partners >= GOAL_PARTNERS && a.points >= GOAL_POINTS;
-    var tag = qualified ? ' — QUALIFIED!' : '';
-    var note = a.note ? ' (' + a.note + ')' : '';
-    lines.push((i + 1) + '. ' + a.name + note + ' — Partners ' + a.partners + '/' + GOAL_PARTNERS + ' · Points ' + fmt(a.points) + '/' + fmt(GOAL_POINTS) + tag);
-  });
-  return lines.join('\n');
-}
-
 document.getElementById('copyBtn').addEventListener('click', function () {
   var btn = this;
-  var text = buildCopyText();
-  function flash(ok) {
-    btn.textContent = ok ? '✓ COPIED' : '✗ COPY FAILED';
-    setTimeout(function () { btn.textContent = '⧉ COPY LIST'; }, 1600);
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ CAPTURING…';
+  function flash(msg) {
+    btn.textContent = msg;
+    setTimeout(function () { btn.textContent = '📸 COPY IMAGE'; btn.disabled = false; }, 1800);
   }
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(function () { flash(true); }, function () { flash(false); });
-  } else {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    var ok = false;
-    try { ok = document.execCommand('copy'); } catch (e) {}
-    document.body.removeChild(ta);
-    flash(ok);
-  }
+  // Snapshot at 100% zoom so the capture is always full-size, then restore.
+  var viewport = document.getElementById('zoomViewport');
+  var savedZoom = viewport.style.zoom;
+  viewport.style.zoom = 1;
+  var target = document.querySelector('.lic-page');
+  var bg = getComputedStyle(document.body).backgroundColor;
+  html2canvas(target, { backgroundColor: bg, scale: 2, useCORS: true })
+    .then(function (canvas) {
+      viewport.style.zoom = savedZoom;
+      return new Promise(function (resolve, reject) {
+        canvas.toBlob(function (blob) { blob ? resolve(blob) : reject(new Error('no blob')); }, 'image/png');
+      });
+    })
+    .then(function (blob) {
+      if (navigator.clipboard && window.ClipboardItem) {
+        return navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+          .then(function () { flash('✓ IMAGE COPIED'); });
+      }
+      // Browser can't put images on the clipboard — save the PNG instead.
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'gx-standings.png';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+      flash('⬇ SAVED AS PNG');
+    })
+    .catch(function () {
+      viewport.style.zoom = savedZoom;
+      flash('✗ COPY FAILED');
+    });
 });
 
 document.getElementById('zoomOut').addEventListener('click', function () { zoom = Math.max(50, zoom - 10); applyZoom(); });
