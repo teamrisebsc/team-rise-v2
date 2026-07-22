@@ -243,13 +243,14 @@ var GOAL_PARTNERS = 3, GOAL_POINTS = 15000;
 var DATA = {
   base: [
     {"name":"Emily Feliton","partners":1,"points":7949},
-    {"name":"Dee Dee Langlois Gunn","partners":2,"points":939},
-    {"name":"Odalys Mendez","partners":2,"points":939,"note":"+1 taproot"},
+    {"name":"Dee Dee Langlois Gunn","partners":2,"points":938},
+    {"name":"Odalys Mendez","partners":2,"points":938,"note":"+1 taproot"},
     {"name":"David Groode","partners":2,"points":0},
     {"name":"Kimberly Bowen","partners":2,"points":0},
     {"name":"David Lewis Bradley","partners":0,"points":9291},
-    {"name":"Lorena Rodriguez","partners":0,"points":5531},
-    {"name":"Skye Singleton","partners":1,"points":22},
+    {"name":"Lorena Rodriguez","partners":0,"points":5530},
+    {"name":"Rhonda Leonard-Horwith","partners":0,"points":4716},
+    {"name":"Skye Singleton","partners":1,"points":177},
     {"name":"Crystal Bonham","partners":1,"points":0},
     {"name":"Paola Alarcon","partners":1,"points":0},
     {"name":"Gabriela Rivera","partners":1,"points":0},
@@ -258,23 +259,24 @@ var DATA = {
     {"name":"Skyler Saulovich","partners":1,"points":0},
     {"name":"Lynn Hicks","partners":1,"points":0},
     {"name":"Edgar Palencia","partners":1,"points":0},
-    {"name":"Debra Long","partners":0,"points":1325},
-    {"name":"Maiddo Esho","partners":0,"points":1325},
-    {"name":"Bertha Huerta","partners":0,"points":585},
-    {"name":"Murphy Shumpert","partners":0,"points":558}
+    {"name":"Murphy Shumpert","partners":0,"points":1517},
+    {"name":"Debra Long","partners":0,"points":1324},
+    {"name":"Maiddo Esho","partners":0,"points":1324},
+    {"name":"Bertha Huerta","partners":0,"points":584}
   ],
   superbase: [
     {"name":"Cain Garcia","partners":2,"points":0},
-    {"name":"Michele and Dana Mcgann","partners":1,"points":3240},
-    {"name":"Faith Giurlani","partners":1,"points":2025},
+    {"name":"Michele and Dana Mcgann","partners":2,"points":3240},
     {"name":"Gonzalo Verduzco","partners":1,"points":1157},
+    {"name":"Annailka Cazeau","partners":1,"points":0},
     {"name":"Aurora Tapia Carretero","partners":1,"points":0},
     {"name":"Jimmy Lieu","partners":1,"points":0},
     {"name":"Clarece Weinraub","partners":0,"points":3850},
     {"name":"Julie Heard","partners":0,"points":2109},
+    {"name":"Faith Giurlani","partners":0,"points":2024},
+    {"name":"Kaili Kimura","partners":0,"points":1517},
     {"name":"Amy Bailey","partners":0,"points":1203},
-    {"name":"Genevieve Bautista","partners":0,"points":1157},
-    {"name":"Kaili Kimura","partners":0,"points":744}
+    {"name":"Genevieve Bautista","partners":0,"points":1157}
   ]
 };
 DATA.hierarchy = DATA.base.concat(DATA.superbase);
@@ -299,7 +301,7 @@ function render() {
   var heroTitle = { base: 'Baseshop', superbase: 'Superbase', hierarchy: 'Hierarchy' }[key];
   document.getElementById('heroTitle').textContent = heroTitle;
 
-  var now = new Date('2026-07-20T23:58:00');
+  var now = new Date('2026-07-21T17:03:00');
   var monthName = now.toLocaleDateString('en-US', { month: 'long' });
   document.getElementById('heroSub').textContent = 'GX TRACKER · ' + monthName.toUpperCase() + ' ' + now.getFullYear() + ' · MTD';
   var endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -308,7 +310,7 @@ function render() {
   var asOfDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   document.getElementById('dateChip').textContent = asOfDate.toUpperCase();
   document.getElementById('asOfDate').textContent = asOfDate;
-  document.getElementById('freshness').textContent = 'Last GX sync: ' + now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ' — net of chargebacks · taproot verified (Odalys Mendez +1 via Crystal Bonham) · self-client checked: none in July';
+  document.getElementById('freshness').textContent = 'Last GX sync: ' + now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ' — net of chargebacks · trainee 100% / writing-split 50-50 · taproot verified (Odalys Mendez +1 via Crystal Bonham) · self-client checked: none in July';
 
   var agents = sortedAgents(key);
 
