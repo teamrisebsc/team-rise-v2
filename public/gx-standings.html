@@ -244,13 +244,13 @@ var DATA = {
   base: [
     {"name":"Paola Alarcon","partners":2,"points":9372},
     {"name":"Emily Feliton","partners":1,"points":7949},
-    {"name":"Dee Dee Langlois Gunn","partners":2,"points":939},
     {"name":"Skye Singleton","partners":1,"points":5457},
-    {"name":"Gabriela Rivera","partners":2,"points":0},
+    {"name":"Gabriela Rivera","partners":3,"points":0,"note":"+1 taproot"},
     {"name":"David Groode","partners":2,"points":0},
     {"name":"Kimberly Bowen","partners":2,"points":0},
     {"name":"David Lewis Bradley","partners":0,"points":9291},
     {"name":"Odalys Mendez","partners":2,"points":2821,"note":"+1 taproot"},
+    {"name":"Dee Dee Langlois Gunn","partners":4,"points":939,"note":"+2 taproot"},
     {"name":"Lorena Rodriguez","partners":0,"points":5531},
     {"name":"Crystal Bonham","partners":1,"points":0},
     {"name":"Kander McInnis","partners":1,"points":0},
@@ -317,7 +317,7 @@ function render() {
   var heroTitle = { base: 'Baseshop', superbase: 'Superbase', hierarchy: 'Hierarchy' }[key];
   document.getElementById('heroTitle').textContent = heroTitle;
 
-  var now = new Date('2026-07-29T21:37:00');
+  var now = new Date('2026-07-29T22:20:00');
   var monthName = now.toLocaleDateString('en-US', { month: 'long' });
   document.getElementById('heroSub').textContent = 'GX TRACKER · ' + monthName.toUpperCase() + ' ' + now.getFullYear() + ' · MTD';
   var endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -326,7 +326,7 @@ function render() {
   var asOfDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   document.getElementById('dateChip').textContent = asOfDate.toUpperCase();
   document.getElementById('asOfDate').textContent = asOfDate;
-  document.getElementById('freshness').textContent = 'Last GX sync: ' + now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ' — net of chargebacks · trainee 100% / writing-split 50-50 · taproot verified (Odalys Mendez +1 via Crystal Bonham; Michelle Bonilla and Kimberly Bowen chains checked, field_trainer did not confirm their recruiter, no bonus) · self-client checked: none in July';
+  document.getElementById('freshness').textContent = 'Last GX sync: ' + now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ' — net of chargebacks · trainee 100% / writing-split 50-50 · taproot verified (Odalys Mendez +1, Gabriela Rivera +1, Dee Dee Langlois Gunn +2 — all recruiter-chain fast-starts in the same month) · self-client checked: none in July';
 
   var agents = sortedAgents(key);
 
