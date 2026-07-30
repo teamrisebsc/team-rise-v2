@@ -338,7 +338,7 @@ function render() {
         '<div class="gx-stat-need' + (rMet ? ' met' : '') + '">' + (rMet ? 'goal met!' : 'needs ' + (GOAL_PARTNERS - a.partners)) + '</div></div>' +
       '<div class="gx-stat-row"><div class="gx-stat-head"><span class="gx-stat-label">Points</span><span class="gx-stat-value"><b>' + fmt(a.points) + '</b> / ' + fmt(GOAL_POINTS) + '</span></div>' +
         '<div class="gx-bar-track"><div class="gx-bar-fill' + (pMet ? ' full' : '') + '" style="width:' + pPct + '%"></div></div>' +
-        '<div class="gx-stat-need' + (pMet ? ' met' : '') + '">' + (pMet ? 'goal met!' : 'needs $' + fmt(GOAL_POINTS - a.points)) + '</div></div>' +
+        '<div class="gx-stat-need' + (pMet ? ' met' : '') + '">' + (pMet ? 'goal met!' : 'needs ' + fmt(GOAL_POINTS - a.points) + ' pts') + '</div></div>' +
       '</div>';
   }).join('');
 
