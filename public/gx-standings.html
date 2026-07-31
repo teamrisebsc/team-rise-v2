@@ -242,16 +242,16 @@ var GOAL_PARTNERS = 3, GOAL_POINTS = 15000;
 
 var DATA = {
   base: [
-    {"name":"Paola Alarcon","partners":3,"points":9372},
+    {"name":"Paola Alarcon","partners":3,"points":20982},
     {"name":"Kimberly Bowen","partners":3,"points":0},
-    {"name":"Emily Feliton","partners":1,"points":6512},
-    {"name":"Skye Singleton","partners":1,"points":5280},
-    {"name":"Dee Dee Langlois Gunn","partners":5,"points":0,"note":"+3 taproot"},
     {"name":"Gabriela Rivera","partners":3,"points":0,"note":"+1 taproot"},
+    {"name":"Skye Singleton","partners":1,"points":7919},
+    {"name":"Emily Feliton","partners":1,"points":6512},
+    {"name":"Juleidy Benitez","partners":0,"points":10290,"note":"self-client 100%"},
+    {"name":"Dee Dee Langlois Gunn","partners":5,"points":0,"note":"+3 taproot"},
     {"name":"David Groode","partners":2,"points":0},
     {"name":"Odalys Mendez","partners":2,"points":1882,"note":"+1 taproot"},
     {"name":"Lorena Rodriguez","partners":0,"points":5531},
-    {"name":"Crystal Bonham","partners":1,"points":0},
     {"name":"Kander McInnis","partners":1,"points":0},
     {"name":"Phyllis Darden","partners":1,"points":0},
     {"name":"Janice Young","partners":1,"points":0},
@@ -263,9 +263,9 @@ var DATA = {
     {"name":"Skyler Saulovich","partners":1,"points":0},
     {"name":"Lynn Hicks","partners":1,"points":0},
     {"name":"Edgar Palencia","partners":1,"points":0},
+    {"name":"Murphy Shumpert","partners":0,"points":3960},
     {"name":"Brittney Steinberg","partners":0,"points":3914},
     {"name":"Mel Mclntosh-Martin","partners":0,"points":2818},
-    {"name":"Murphy Shumpert","partners":0,"points":2640},
     {"name":"Debra Long","partners":0,"points":1313},
     {"name":"Maiddo Esho","partners":0,"points":1313},
     {"name":"Jenna Garagiola","partners":0,"points":707},
@@ -273,19 +273,20 @@ var DATA = {
   ],
   superbase: [
     {"name":"Michele and Dana Mcgann","partners":3,"points":3648},
+    {"name":"Jimmy Lieu","partners":3,"points":497},
     {"name":"Andrea Holzer","partners":1,"points":9371},
-    {"name":"Jimmy Lieu","partners":2,"points":497},
     {"name":"Cain Garcia","partners":2,"points":0},
     {"name":"Gonzalo Verduzco","partners":1,"points":497},
     {"name":"Kristin Bell","partners":1,"points":0},
     {"name":"Annailka Cazeau","partners":1,"points":0},
     {"name":"Aurora Tapia Carretero","partners":1,"points":0},
     {"name":"Clarece Weinraub","partners":0,"points":3850},
-    {"name":"Faith Giurlani","partners":0,"points":1706},
+    {"name":"Faith Giurlani","partners":0,"points":3711},
+    {"name":"Amy Bailey","partners":0,"points":2406},
     {"name":"Thomas Solano","partners":0,"points":1460},
-    {"name":"Amy Bailey","partners":0,"points":1203},
     {"name":"Julie Heard","partners":0,"points":1175},
-    {"name":"Cheyenne Chitry","partners":0,"points":503}
+    {"name":"Cheyenne Chitry","partners":0,"points":503},
+    {"name":"Tiffany Martinez","partners":0,"points":77}
   ]
 };
 DATA.hierarchy = DATA.base.concat(DATA.superbase);
@@ -310,7 +311,7 @@ function render() {
   var heroTitle = { base: 'Baseshop', superbase: 'Superbase', hierarchy: 'Hierarchy' }[key];
   document.getElementById('heroTitle').textContent = heroTitle;
 
-  var now = new Date('2026-07-30T00:38:00');
+  var now = new Date('2026-07-31T10:44:00');
   var monthName = now.toLocaleDateString('en-US', { month: 'long' });
   document.getElementById('heroSub').textContent = 'GX TRACKER · ' + monthName.toUpperCase() + ' ' + now.getFullYear() + ' · MTD';
   var endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -319,7 +320,7 @@ function render() {
   var asOfDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   document.getElementById('dateChip').textContent = asOfDate.toUpperCase();
   document.getElementById('asOfDate').textContent = asOfDate;
-  document.getElementById('freshness').textContent = 'Last GX sync: ' + now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ' — net of chargebacks AND points-held (pending submission) · trainee 100% / writing-split 50-50 · taproot verified (Odalys Mendez +1, Gabriela Rivera +1, Dee Dee Langlois Gunn +3) · self-client checked: none in July';
+  document.getElementById('freshness').textContent = 'Last GX sync: ' + now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ' — net of chargebacks AND points-held (pending submission) · trainee 100% / writing-split 50-50 · taproot verified (Odalys Mendez +1, Gabriela Rivera +1, Dee Dee Langlois Gunn +3) · self-client verified (Juleidy Benitez 100%, 10,290 pts) · duplicate-record correction applied (Paola Alarcon / Gabriela Rivera, Eduardo Auli + Juleidy Benitez policies)';
 
   var agents = sortedAgents(key);
 
